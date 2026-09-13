@@ -1,0 +1,9 @@
+# Normalize line endings for everyone (Windows/macOS/Linux contributors,
+# and the 3-OS CI matrix in .github/workflows/ci.yml) so line-ending
+# churn never shows up as noise in diffs. Git still auto-detects binary
+# files; this only affects files it already treats as text.
+* text=auto eol=lf
+
+# Windows-only scripts genuinely want CRLF.
+*.bat text eol=crlf
+*.cmd text eol=crlf

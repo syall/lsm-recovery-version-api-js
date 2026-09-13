@@ -1,0 +1,12 @@
+# Requires branch protection on `main` with "Require review from Code
+# Owners" enabled (Repo Settings -> Branches -> main) to actually take
+# effect — this file alone doesn't block anything by itself.
+
+# Release/publish automation and npm-adjacent config: changes here
+# need @syall's review before merging to main, since they control
+# what the publish workflow is allowed to do.
+/.github/workflows/publish.yml   @syall
+/.github/workflows/              @syall
+/.changeset/config.json          @syall
+/package.json                    @syall
+/packages/*/package.json         @syall

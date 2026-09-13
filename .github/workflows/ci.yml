@@ -1,0 +1,150 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: Test & build (Node ${{ matrix.node-version }} on ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        # Node 18 is EOL (April 2025); 20/22/24 are the currently
+        # maintained lines (20 and 22 are LTS, 24 is Active LTS as of
+        # this matrix's last update — check https://nodejs.org/en/about/previous-releases
+        # when revisiting).
+        node-version: ["20.x", "22.x", "24.x"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+
+      # A single `npm ci` at the repo root installs and links both
+      # workspaces (packages/verse-reference-builder, packages/api-client).
+      - name: Install dependencies
+        run: npm ci
+
+      - name: "Test both packages (includes typecheck via \"pretest\", and @ts-expect-error compile proofs)"
+        run: npm test --workspaces --if-present
+
+      - name: Build both packages (ESM + CommonJS + browser UMD)
+        run: npm run build --workspaces --if-present
+
+  # Separate from the `test` job above: test:browser exercises each
+  # package's esbuild-produced UMD bundle in a real browser, which
+  # verifies browser compatibility rather than Node-runtime
+  # compatibility. It doesn't need a Node version axis at all (one Node
+  # version is enough to run the driving script), so it's its own job
+  # matrixed only by OS and browser engine.
+  browser:
+    name: Browser (UMD) smoke test (${{ matrix.engine }} on ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        engine: [chromium, firefox, webkit]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # chromium drives the system's already-installed Chrome/Edge (every
+      # GitHub-hosted runner ships Chrome), so nothing to download there.
+      # firefox/webkit aren't preinstalled, so fetch a managed copy first —
+      # read directly from the root package.json's playwright-core
+      # devDependency rather than hardcoding a version here, so this can
+      # never drift out of sync with it (a mismatched version would make
+      # Playwright refuse to launch the downloaded browser). Shared by
+      # both packages since playwright-core is hoisted to the root.
+      - name: Read pinned playwright-core version
+        if: matrix.engine != 'chromium'
+        id: playwright-version
+        shell: bash
+        run: |
+          VERSION=$(node -p "require('./package.json').devDependencies['playwright-core']" | sed 's/^[\^~]//')
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Install ${{ matrix.engine }} (firefox/webkit only)
+        if: matrix.engine != 'chromium'
+        run: npx playwright@${{ steps.playwright-version.outputs.version }} install --with-deps ${{ matrix.engine }}
+
+      - name: Browser (UMD) smoke test (both packages)
+        env:
+          PLAYWRIGHT_ENGINE: ${{ matrix.engine }}
+        run: npm run test:browser --workspaces --if-present
+
+  # README claims Node, Bun, and Deno compatibility (all three support
+  # each package's ESM output directly) — these two jobs are what
+  # actually verify that claim, rather than leaving it untested. One OS
+  # is enough here: the point is runtime (JS engine/module resolution)
+  # compatibility, not OS compatibility, which the `test` job's matrix
+  # already covers for Node.
+  runtime-bun:
+    name: Runtime smoke test (Bun)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js (build step only — Bun itself runs the smoke test)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build ESM output (both packages)
+        run: npm run build:esm --workspaces --if-present
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Runtime smoke test (Bun, both packages)
+        run: npm run test:runtime:bun --workspaces --if-present
+
+  runtime-deno:
+    name: Runtime smoke test (Deno)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js (build step only — Deno itself runs the smoke test)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build ESM output (both packages)
+        run: npm run build:esm --workspaces --if-present
+
+      - name: Set up Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Runtime smoke test (Deno, both packages)
+        run: npm run test:runtime:deno --workspaces --if-present

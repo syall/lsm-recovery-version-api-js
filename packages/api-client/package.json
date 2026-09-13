@@ -1,0 +1,74 @@
+{
+  "name": "@syall/lsm-recovery-version-api-js",
+  "version": "0.1.3",
+  "description": "TypeScript client for the LSM Text Only Holy Bible Recovery Version API.",
+  "keywords": [
+    "lsm",
+    "recovery-version",
+    "bible",
+    "typescript",
+    "api-client"
+  ],
+  "license": "MIT",
+  "author": "Steven Yuan (syall)",
+  "homepage": "https://github.com/syall/lsm-recovery-version-api-js/tree/main/packages/api-client#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/syall/lsm-recovery-version-api-js.git",
+    "directory": "packages/api-client"
+  },
+  "bugs": {
+    "url": "https://github.com/syall/lsm-recovery-version-api-js/issues"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "umdName": "LsmRecoveryVersionApi",
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/cjs/index.d.ts",
+  "unpkg": "./dist/umd/lsm-recovery-version-api-js.min.js",
+  "jsdelivr": "./dist/umd/lsm-recovery-version-api-js.min.js",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/esm/index.d.ts",
+        "default": "./dist/esm/index.js"
+      },
+      "require": {
+        "types": "./dist/cjs/index.d.ts",
+        "default": "./dist/cjs/index.js"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "NOTICE.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "clean": "rimraf dist dist-test",
+    "build:esm": "tsc -p tsconfig.esm.json",
+    "build:cjs": "tsc -p tsconfig.cjs.json",
+    "build:umd": "node ../../scripts/build-umd.mjs",
+    "build": "npm run clean && npm run build:esm && npm run build:cjs && npm run build:umd && node ../../scripts/write-dist-manifests.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "tsc -p tsconfig.json --outDir dist-test && npm run dist-test",
+    "dist-test": "node --test \"dist-test/test/client.test.js\"",
+    "test:browser": "npm run build:umd && node ../../scripts/test-browser.mjs",
+    "test:runtime:bun": "npm run build:esm && bun ../../scripts/smoke-test-esm.mjs",
+    "test:runtime:deno": "npm run build:esm && deno run --allow-read=. ../../scripts/smoke-test-esm.mjs",
+    "pretest": "npm run typecheck",
+    "prepublishOnly": "npm run test && npm run build",
+    "prepare": "npm run build"
+  }
+}

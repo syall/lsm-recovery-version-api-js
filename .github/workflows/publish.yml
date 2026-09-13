@@ -1,0 +1,156 @@
+# Manually-triggered release: publishes every package whose version was
+# already bumped via `npm run version-packages` (Changesets) and
+# committed to `main`, using npm Trusted Publishing (OIDC) so no
+# NPM_TOKEN secret and no manual OTP/passkey prompt is needed for the
+# npm side. Also creates a matching GitHub Release (tag + changelog
+# notes) for each package version actually published, via
+# changesets/action's `create-github-releases` option.
+#
+# Note: `changeset publish` (the CLI command) has no `--provenance`
+# flag — only the underlying `npm publish` does, and it's irrelevant
+# here anyway: with OIDC trusted publishing (id-token: write, no
+# NPM_TOKEN), npm generates the provenance attestation automatically
+# for every publish, no flag or env var needed.
+#
+# Pinned to changesets/action@v2, not @v1: @changesets/cli v3 (what
+# this repo uses) replaced its old plain-text "New tag: ..." publish
+# output with a spinner UI. changesets/action@v1 only knows how to
+# detect published packages by regex-matching that old "New tag:"
+# line in stdout, so with CLI v3 it silently finds nothing published
+# — publish and git-tag creation still work, but create-github-releases
+# never fires because it (wrongly) sees zero released packages. v2
+# fixes this by reading a machine-readable output file the CLI writes
+# instead of scraping stdout, and also renames some inputs to
+# kebab-case (publish -> publish-script, github-token as an input
+# instead of a GITHUB_TOKEN env var).
+#
+# This does NOT auto-open a "Version Packages" PR — that stays a manual
+# step (see README.md#releasing):
+#   npx changeset            # record a change
+#   npm run version-packages # apply pending changesets, commit, push to main
+# Then come back here and run this workflow (Actions tab -> Publish ->
+# Run workflow) to actually publish to npm and create the release(s).
+#
+# ---------------------------------------------------------------------
+# Restricting who can actually publish — this file alone can't do all
+# of it; see the one-time GitHub repo settings below.
+# ---------------------------------------------------------------------
+#
+# 1. `if: github.actor == 'syall'` on the job (below) rejects the run
+#    immediately if triggered by anyone else. Note this is a backstop,
+#    not the primary control: GitHub only lets accounts with write
+#    access run workflow_dispatch at all, so this only matters once/if
+#    other collaborators are ever added.
+#
+# 2. A GitHub Environment gates the actual publish step behind a
+#    required-reviewer approval, independent of who dispatched the
+#    run, and independent of which branch a modified copy of this file
+#    lives on:
+#      Repo Settings -> Environments -> New environment -> name it
+#      "npm-publish" -> Required reviewers: add syall -> Deployment
+#      branches and tags: restrict to the "main" branch only.
+#    This job below references that environment via `environment:`.
+#    Even if someone with write access edits this file on a feature
+#    branch and dispatches it there, the environment's branch
+#    restriction blocks it from ever reaching the publish step, and
+#    the required-reviewer gate means YOU still have to approve the
+#    run before it does anything.
+#
+# 3. Add a CODEOWNERS entry (see .github/CODEOWNERS) making @syall the
+#    required reviewer for changes under .github/workflows/, and turn
+#    on branch protection for `main`:
+#      Repo Settings -> Branches -> Add rule for "main":
+#        - Require a pull request before merging
+#        - Require review from Code Owners
+#        - Restrict who can push to matching branches -> only syall
+#        - Do not allow bypassing the above settings
+#    This stops anyone else from merging a modified publish.yml into
+#    main without your review, on top of (2) already blocking it from
+#    running even if it lands on some other branch.
+#
+# 4. Trusted publishing itself already helps here too: npm's trusted
+#    publisher config (below) is registered against this exact repo
+#    ("syall/lsm-recovery-version-api-js") and this exact workflow
+#    filename. A fork is a *different* repository as far as npm's OIDC
+#    check is concerned, so a forked copy of this workflow — modified
+#    or not — can never authenticate as a trusted publisher for these
+#    packages, regardless of anything else above.
+#
+# One-time setup required before this can publish anything (safe to
+# add/keep this file without doing this yet — it just won't be able to
+# publish until it's done):
+#
+#   For EACH package (@syall/lsm-recovery-version-api-js and
+#   @syall/verse-reference-builder), on npmjs.com:
+#     Package page -> Settings -> Trusted Publisher -> GitHub Actions
+#       - Organization or user: syall
+#       - Repository: lsm-recovery-version-api-js
+#       - Workflow filename: publish.yml
+#       - Environment: npm-publish (must match the `environment:` key
+#         on the job below, once you've created it per step 2 above)
+#     Leave "Allow npm publish" UNCHECKED if you want the staged/2FA
+#     manual-approval flow (see PUBLISHING notes in CONTRIBUTING.md) —
+#     that's the human-in-the-loop setup this repo currently uses.
+#
+#   Requires npm CLI >= 11.5.1 in this workflow (see the update step
+#   below) for `npm publish` to use OIDC automatically. See:
+#   https://docs.npmjs.com/trusted-publishers
+#
+# Until trusted publishing and the environment above are configured,
+# you can still publish manually as before (see README.md#releasing).
+
+name: Publish
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: write # to push git tag(s) and create GitHub Releases
+  id-token: write # for npm Trusted Publishing (OIDC) — no NPM_TOKEN needed
+
+jobs:
+  publish:
+    name: Publish changed packages
+    runs-on: ubuntu-latest
+    if: github.actor == 'syall'
+    environment: npm-publish
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.x"
+          cache: npm
+
+      # OIDC trusted publishing needs a recent npm CLI (>= 11.5.1),
+      # newer than what some Node 20/22 setups ship by default.
+      - name: Update npm for OIDC trusted publishing support
+        run: npm install -g npm@latest
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build both packages
+        run: npm run build --workspaces --if-present
+
+      - name: Test both packages
+        run: npm test --workspaces --if-present
+
+      # Since versions were already bumped and committed before this
+      # workflow was triggered, there are no pending changesets left —
+      # changesets/action skips straight to running `publish-script`
+      # below (rather than opening a "Version Packages" PR), pushes
+      # the git tag(s) `changeset publish` creates, and — with
+      # create-github-releases: true — opens a GitHub Release per
+      # published package version (tag name "<package>@<version>",
+      # notes pulled from that package's CHANGELOG.md).
+      - name: Publish changed packages & create GitHub Releases
+        uses: changesets/action@v2
+        with:
+          publish-script: npx changeset publish
+          create-github-releases: true
+          github-token: ${{ secrets.GITHUB_TOKEN }}
