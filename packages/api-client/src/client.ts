@@ -36,11 +36,33 @@ export class LsmRecoveryVersionClient {
   async getVerses(params: GetVersesParams): Promise<VersesResponse> {
     const res = await this.request(params);
     const text = await res.text();
+    let parsed;
     try {
-      return JSON.parse(text) as VersesResponse;
+      parsed = JSON.parse(text) as VersesResponse;
     } catch (cause) {
       throw new LsmApiError("The API response could not be parsed as JSON.", res.status, text, { cause });
     }
+    this.assertMessageIsNotAnError(res.status, text, parsed);
+    return parsed;
+  }
+
+  /**
+   * LSM's API can report a hard failure — missing/invalid credentials, a
+   * malformed reference string — with an HTTP 200 response rather than a
+   * 4xx status; the failure only shows up in the JSON body's `message`
+   * field. Confirmed against the live API for the unauthorized case:
+   * status 200, `verses: []`, and
+   * `message: "Error: You are not authorized to use this API...."`. A
+   * non-error `message` (e.g. the 50-verse-limit notice) never starts
+   * with "Error", so this only fires for genuine failures.
+   */
+  private assertMessageIsNotAnError(status: number, body: string, parsed: VersesResponse): void {
+    const message = parsed.message?.trim();
+    if (!message || !/^error\b/i.test(message)) return;
+    if (/not authorized/i.test(message)) {
+      throw new UnauthorizedError(status, body);
+    }
+    throw new InvalidInputError(status, body);
   }
 
   private buildUrl(params: GetVersesParams): string {

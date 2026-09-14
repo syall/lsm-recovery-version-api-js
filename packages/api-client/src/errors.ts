@@ -12,9 +12,17 @@ export class LsmApiError extends Error {
 }
 
 /**
- * HTTP 400 — the `String` parameter contained a disallowed character, an
+ * The `String` parameter contained a disallowed character, an
  * unrecognized book/chapter/verse reference, or otherwise didn't conform
- * to the required input format.
+ * to the required input format. LSM's docs don't specify HTTP status
+ * codes for any error condition, and a direct test against the live API
+ * confirms at least the unauthorized case (see `UnauthorizedError`)
+ * returns HTTP 200 rather than a 4xx status, reporting the failure only
+ * via the JSON body's `message` field. To cover both possibilities,
+ * this is thrown either when the response's HTTP status is literally
+ * 400, or when a 200 response's `message` starts with some
+ * capitalization of "Error" and isn't the unauthorized case (see
+ * `client.ts`'s `request()` and `assertMessageIsNotAnError()`).
  */
 export class InvalidInputError extends LsmApiError {
   constructor(status: number, body?: string) {
@@ -23,7 +31,17 @@ export class InvalidInputError extends LsmApiError {
   }
 }
 
-/** HTTP 401 — missing or invalid Basic Auth credentials (app id / token). */
+/**
+ * Missing or invalid Basic Auth credentials (app id / token). LSM's docs
+ * don't document HTTP status codes for any error condition, and a direct
+ * test against the live API confirms an unauthorized request returns
+ * HTTP 200 (not 401) with an empty `verses` array and a `message` like
+ * "Error: You are not authorized to use this API...". To cover both
+ * possibilities, this is thrown either when the response status is
+ * literally 401, or when a 200 response's `message` starts with some
+ * capitalization of "Error" and mentions being unauthorized (see
+ * `client.ts`'s `request()` and `assertMessageIsNotAnError()`).
+ */
 export class UnauthorizedError extends LsmApiError {
   constructor(status: number, body?: string) {
     super("Missing or invalid app id / token.", status, body);

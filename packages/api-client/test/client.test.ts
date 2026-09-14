@@ -354,6 +354,80 @@ test("throws a generic LsmApiError (not a subclass) on any other error status", 
   );
 });
 
+test("throws UnauthorizedError on a 200 response whose message reports being unauthorized", async () => {
+  const body = {
+    inputstring: "abc",
+    detected: "Gen. 15:5",
+    verses: [],
+    message: "Error: You are not authorized to use this API. See https://api.lsm.org for more details.",
+    copyright: "© LSM",
+  };
+  const { fetchImpl } = makeCapturingFetch(() => okResponse(body));
+  const client = new LsmRecoveryVersionClient({ appId: "id", token: "tok", fetch: fetchImpl });
+
+  await assert.rejects(
+    () => client.getVerses({ string: "abc" }),
+    (err: unknown) => {
+      assert.ok(err instanceof UnauthorizedError);
+      assert.equal(err.status, 200);
+      assert.equal(err.message, "Missing or invalid app id / token.");
+      return true;
+    },
+  );
+});
+
+test("throws InvalidInputError on a 200 response whose message starts with \"Error\" for a non-authorization reason", async () => {
+  const body = {
+    inputstring: "Not A Book 1:1",
+    detected: "",
+    verses: [],
+    message: "Error: unrecognized book or reference.",
+    copyright: "© LSM",
+  };
+  const { fetchImpl } = makeCapturingFetch(() => okResponse(body));
+  const client = new LsmRecoveryVersionClient({ appId: "id", token: "tok", fetch: fetchImpl });
+
+  await assert.rejects(
+    () => client.getVerses({ string: "Not A Book 1:1" }),
+    (err: unknown) => {
+      assert.ok(err instanceof InvalidInputError);
+      assert.equal(err.status, 200);
+      return true;
+    },
+  );
+});
+
+test("treats a message starting with any capitalization of \"Error\" as a failure", async () => {
+  const body = { ...EMPTY_BODY, message: "ERROR: something went wrong." };
+  const { fetchImpl } = makeCapturingFetch(() => okResponse(body));
+  const client = new LsmRecoveryVersionClient({ appId: "id", token: "tok", fetch: fetchImpl });
+
+  await assert.rejects(() => client.getVerses({ string: "John 1:14" }), InvalidInputError);
+});
+
+test("does not treat a non-error, non-empty message (e.g. the 50-verse-limit notice) as a failure", async () => {
+  const body = {
+    inputstring: "John 1",
+    detected: "John 1:1-50",
+    verses: [{ ref: "John 1:1", text: "In the beginning..." }],
+    message: "You have exceeded 50 verses, which is the maximum number of verses sent per request. (You requested 51 verses)",
+    copyright: "© LSM",
+  };
+  const { fetchImpl } = makeCapturingFetch(() => okResponse(body));
+  const client = new LsmRecoveryVersionClient({ appId: "id", token: "tok", fetch: fetchImpl });
+
+  const result = await client.getVerses({ string: "John 1" });
+  assert.deepEqual(result, body);
+});
+
+test("does not treat an empty message as a failure", async () => {
+  const { fetchImpl } = makeCapturingFetch(() => okResponse(EMPTY_BODY));
+  const client = new LsmRecoveryVersionClient({ appId: "id", token: "tok", fetch: fetchImpl });
+
+  const result = await client.getVerses({ string: "John 1:14" });
+  assert.deepEqual(result, EMPTY_BODY);
+});
+
 test("falls back to an undefined error body when reading the response text fails", async () => {
   const broken = new Response(null, { status: 500 });
   broken.text = async () => {

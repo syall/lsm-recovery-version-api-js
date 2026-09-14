@@ -21,8 +21,13 @@ development](https://semver.org/#spec-item-4)).
   which requires HTTP Basic Authentication on every request with no
   anonymous mode.
 - Typed error hierarchy: `LsmApiError` (base, carries `status`/`body`/`cause`),
-  `InvalidInputError` (400), `UnauthorizedError` (401), `NetworkError`
-  (fetch itself failed), and `IncompleteCredentialsError`.
+  `InvalidInputError`, `UnauthorizedError`, `NetworkError` (fetch itself
+  failed), and `IncompleteCredentialsError`. Since LSM's docs don't
+  specify HTTP status codes and the API can report a failure via an
+  HTTP 200 response with an `Error: ...`-prefixed `message` field rather
+  than a 4xx status, `getVerses()` checks for that pattern too, so
+  `InvalidInputError`/`UnauthorizedError` are thrown correctly either
+  way.
 - Dual ESM/CommonJS builds (`dist/esm`, `dist/cjs`) plus a
   dependency-free browser `<script>`-tag UMD build (`dist/umd`),
   exposing a `LsmRecoveryVersionApi` global.

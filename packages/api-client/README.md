@@ -145,6 +145,13 @@ See that package's own README for the full builder API.
 - **No offline storage**: don't persist verse text returned by this API.
 - **50-verse limit**: requests beyond 50 verses return a partial result
   with a truncation notice in `message`.
+- **Errors can arrive as HTTP 200**: LSM's docs don't specify HTTP status
+  codes for any error condition, and the live API has been observed
+  reporting an unauthorized request as HTTP 200 with an empty `verses`
+  array and a `message` starting with "Error: ..." rather than a 401.
+  `getVerses()` checks for this in addition to the HTTP status, so
+  `InvalidInputError`/`UnauthorizedError` are still thrown correctly —
+  you don't need to inspect `message` yourself.
 
 ## Development
 
