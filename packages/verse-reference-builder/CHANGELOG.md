@@ -1,5 +1,11 @@
 # @syall/verse-reference-builder
 
+## 0.2.1
+
+### Patch Changes
+
+- 9c6feb2: Update README with no verse reference and disallowed character validation.
+
 ## 0.2.0
 
 ### Minor Changes

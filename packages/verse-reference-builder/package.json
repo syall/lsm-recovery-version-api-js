@@ -1,6 +1,6 @@
 {
   "name": "@syall/verse-reference-builder",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Type-safe, dependency-free builder for LSM Text Only Holy Bible Recovery Version API verse-reference strings.",
   "keywords": [
     "lsm",
