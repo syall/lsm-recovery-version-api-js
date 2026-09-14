@@ -23,14 +23,20 @@ development](https://semver.org/#spec-item-4)).
 - `.dynamicVerse()` / `.dynamicWholeChapter()` / `.dynamicVerseRange()`
   runtime-checked equivalents for book names/chapters/verses only known
   at runtime.
-- A supplied verses-per-chapter table (`versesPerChapter.ts`, also
-  exported as `VERSES_PER_CHAPTER` / `versesInChapter()`) backs two
-  things LSM's own docs don't cover, since they publish chapter counts
-  but not verses-per-chapter: every method that takes a specific verse
-  citation now throws a `RangeError` if that verse doesn't exist in the
-  chapter, and `.validate()` gives an **exact** `verseCount` — including
+- Verses-per-chapter data, supplied from an external source since LSM's
+  own docs publish chapter counts but not verses-per-chapter, lives as a
+  `versesPerChapter` property on each book's own entry in `BOOKS` (e.g.
+  `BOOKS.John.versesPerChapter`, also accessible via
+  `versesInChapter(book, chapter)`). It backs: every method that takes a
+  specific verse citation throwing a `RangeError` if that verse doesn't
+  exist in the chapter or if a range's "from" comes after its "to"; and
+  `.validate()` giving an **exact** `verseCount` — including
   whole-chapter and cross-chapter-range entries — against LSM's
-  50-verse-per-request cap, rather than a lower-bound estimate.
+  50-verse-per-request cap, rather than a lower-bound estimate. Each
+  book's `chapters`/`abbr` fields are literal types (for compile-time
+  chapter-range checking); `versesPerChapter` is typed as
+  `readonly number[]` rather than a literal tuple, keeping the compiled
+  `.d.ts` output small.
 - Zero runtime dependencies.
 - Dual ESM/CommonJS builds (`dist/esm`, `dist/cjs`) plus a
   dependency-free browser `<script>`-tag UMD build (`dist/umd`),

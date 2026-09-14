@@ -88,16 +88,13 @@
 #       - Workflow filename: publish.yml
 #       - Environment: npm-publish (must match the `environment:` key
 #         on the job below, once you've created it per step 2 above)
-#     Leave "Allow npm publish" UNCHECKED if you want the staged/2FA
-#     manual-approval flow (see PUBLISHING notes in CONTRIBUTING.md) —
-#     that's the human-in-the-loop setup this repo currently uses.
+#     Check "Allow npm publish" — the human-in-the-loop control here
+#     comes from the required-reviewer approval on the `npm-publish`
+#     environment (step 2 above), not from this checkbox.
 #
 #   Requires npm CLI >= 11.5.1 in this workflow (see the update step
 #   below) for `npm publish` to use OIDC automatically. See:
 #   https://docs.npmjs.com/trusted-publishers
-#
-# Until trusted publishing and the environment above are configured,
-# you can still publish manually as before (see README.md#releasing).
 
 name: Publish
 

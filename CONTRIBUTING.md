@@ -51,8 +51,8 @@ npm run test:runtime:deno  # requires Deno installed
 ## Releasing
 
 Maintainers only — see [`README.md`](README.md#releasing) for the
-release process (Changesets version bump + `npm publish` per changed
-package).
+release process (Changesets version bump, then the automated Publish
+GitHub Actions workflow).
 
 ## Code style
 

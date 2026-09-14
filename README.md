@@ -66,10 +66,15 @@ See each package's own README for the full breakdown.
 Each package versions and publishes independently via Changesets:
 
 ```bash
-npx changeset          # records a change against one or both packages
-npm run version-packages   # (changeset version) applies pending changesets
+npx changeset             # records a change against one or both packages
+npm run version-packages  # (changeset version) applies pending changesets, commit, push to main
 ```
 
-Then `npm publish` from within whichever package(s) actually changed.
-There is no automated release PR or publish workflow yet — both steps
-are manual.
+Publishing to npm is then automated: dispatch the "Publish" GitHub
+Actions workflow (`.github/workflows/publish.yml` — Actions tab →
+Publish → Run workflow). It builds, tests, and publishes whichever
+package(s) have a pending version bump via npm Trusted Publishing (OIDC
+— no token needed), pushes the release tag(s), and opens a matching
+GitHub Release per package. The run itself still requires a
+required-reviewer approval on the `npm-publish` environment before
+anything actually publishes.

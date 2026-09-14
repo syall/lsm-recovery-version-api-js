@@ -224,8 +224,9 @@ jobs, each running against **both packages** in this monorepo:
   the shared `../../scripts/smoke-test-esm.mjs` harness) under Bun and
   Deno respectively, on a single OS each.
 
-CI does not publish anything — publishing is intentionally a
-manual/local step for now.
+CI does not publish anything; publishing runs through the separate,
+manually-triggered `.github/workflows/publish.yml` workflow instead
+(see [Releasing](#releasing-changesets) below).
 
 ### Runtime compatibility
 
@@ -257,11 +258,13 @@ npx changeset       # records the change + bump type (patch/minor/major)
 ```
 
 Commit the generated `.changeset/*.md` file with your PR. See the repo
-root's `.changeset/README.md` for more. There is currently no automated
-release PR or publish workflow — `npm run version-packages`
-(`changeset version`, run from the repo root) and `npm publish` (run
-from each package that needs publishing) are done manually until that's
-wired up.
+root's `.changeset/README.md` for more. `npm run version-packages`
+(`changeset version`, run from the repo root) is still a manual step,
+but publishing itself is automated: dispatching the "Publish" GitHub
+Actions workflow (`.github/workflows/publish.yml`) builds, tests, and
+publishes via npm Trusted Publishing, pushes the release tag, and opens
+a GitHub Release — gated behind a required-reviewer approval on the
+`npm-publish` environment.
 
 ## License
 

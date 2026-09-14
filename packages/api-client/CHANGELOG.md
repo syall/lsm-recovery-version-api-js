@@ -16,9 +16,10 @@ development](https://semver.org/#spec-item-4)).
 
 - JSON-only TypeScript client (`LsmRecoveryVersionClient`) for the LSM
   Text Only Holy Bible Recovery Version API.
-- `appId`/`token` are individually optional (anonymous requests are
-  supported), but must be provided together — the constructor throws
-  `IncompleteCredentialsError` if only one is set.
+- `appId`/`token` are both required — the constructor throws
+  `IncompleteCredentialsError` if either is missing, matching LSM's API,
+  which requires HTTP Basic Authentication on every request with no
+  anonymous mode.
 - Typed error hierarchy: `LsmApiError` (base, carries `status`/`body`/`cause`),
   `InvalidInputError` (400), `UnauthorizedError` (401), `NetworkError`
   (fetch itself failed), and `IncompleteCredentialsError`.
