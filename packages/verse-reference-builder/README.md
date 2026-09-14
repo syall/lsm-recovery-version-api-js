@@ -146,6 +146,34 @@ const { verseCount, warnings } = new VerseReferenceBuilder()
 // verseCount: 176, warnings: ["176 verses requested, over LSM's 50-verse cap..."]
 ```
 
+`.validate()` also flags two more problems, as warnings rather than
+thrown errors, since neither necessarily means the reference is unusable:
+
+- **No verse references added** — calling `.validate()` (or `.build()`)
+  before adding anything returns `""`. LSM's API treats an empty
+  `String=` specially: rather than an error or an empty result, it
+  returns its own HTML documentation landing page (mislabeled as JSON)
+  instead — see the sibling `@syall/lsm-recovery-version-api-js`
+  package's `DIFFERENCES.md` for the live confirmation. Usually a sign
+  of a forgotten `.verse()`/`.wholeChapter()`/etc. call.
+- **Disallowed characters in the built output** — any character outside
+  LSM's documented `String` grammar (letters, digits, spaces, `.`, `,`,
+  `;`, `-`). LSM's docs say this "will result in an error and no
+  output," but the sibling package found live that it actually falls
+  back to a silent, zero-result word search instead. This can't
+  currently happen through any of `VerseReferenceBuilder`'s own public
+  methods — everything it can serialize is already within the allowed
+  set — so this is defense-in-depth for a future book/citation form
+  that might introduce one. The underlying check is also exported
+  directly, for validating a hand-built or externally-sourced `String`
+  value that never went through this builder at all:
+
+  ```ts
+  import { findDisallowedCharacters } from "@syall/verse-reference-builder";
+
+  findDisallowedCharacters("John 3:16 😀"); // ["😀"]
+  ```
+
 `.build(options)` accepts `{ useAbbreviations?: boolean }`.
 
 See `src/*.ts` for the full set of edge cases this builder accounts for
