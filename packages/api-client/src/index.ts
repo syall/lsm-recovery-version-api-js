@@ -10,6 +10,7 @@ export type {
   GetVersesParams,
   Language,
   LsmClientConfig,
+  SearchType,
   Verse,
   VersesResponse,
 } from "./types.js";

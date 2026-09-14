@@ -1,6 +1,23 @@
 /** Language used to format verse references in the response. */
 export type Language = "eng" | "spa";
 
+/**
+ * Which mode the API resolved the `String` parameter into. Confirmed
+ * live on every response tested (including error/unauthorized
+ * responses) but **not documented anywhere** in LSM's own API docs
+ * (https://api.lsm.org/recver/txo-docs.htm) — see DIFFERENCES.md.
+ *
+ * - `"references"`: `String` was parsed as one or more verse citations
+ *   per LSM's documented grammar, e.g. `"John 3:16"` or
+ *   `"1 Cor. 15:45; 2 Cor. 3:17, 18"`.
+ * - `"words"`: no citation was recognized, so the API fell back to a
+ *   full-text search over the whole Bible for the words in `String`.
+ *   Observed even for input containing characters the docs claim are
+ *   disallowed — there is no separate "invalid input" state, malformed
+ *   input just becomes a (possibly empty) word search.
+ */
+export type SearchType = "references" | "words";
+
 /** A single verse returned by the API. */
 export interface Verse {
   /** Properly formatted reference, e.g. "John 1:14". */
@@ -30,6 +47,8 @@ export interface VersesResponse {
    * displayed alongside any verses shown to end users.
    */
   copyright: string;
+  /** See `SearchType`. */
+  searchType: SearchType;
 }
 
 /** Parameters for getVerses. */
@@ -44,6 +63,12 @@ export interface GetVersesParams {
    * separate `@syall/verse-reference-builder` package and call
    * `.build()` yourself before passing it here — this package
    * intentionally has no dependency on (or awareness of) that builder.
+   *
+   * This isn't restricted to reference syntax, though: if the API
+   * doesn't recognize `string` as a citation, it's used as a full-text
+   * word search instead (see `SearchType`) — e.g. `"grace"` or
+   * `"eternal life"` are valid inputs that return matching verses from
+   * anywhere in the Bible, not just a specific reference.
    */
   string: string;
   /** Reference language; defaults to English server-side. */

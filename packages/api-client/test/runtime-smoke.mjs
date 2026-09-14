@@ -19,6 +19,7 @@ const fetchImpl = async (input, init) => {
     verses: [{ ref: "John 1:14", text: "In the beginning was the Word...", urlpfx: "abc" }],
     message: "",
     copyright: "© LSM",
+    searchType: "references",
   };
   return new Response(JSON.stringify(body), { status: 200 });
 };
@@ -37,6 +38,7 @@ assertEqual(calls[0].init.method, "GET", "expected a GET request");
 assertEqual(result.detected, "John 1:14", "unexpected detected reference");
 assertEqual(result.verses.length, 1, "unexpected verse count");
 assertEqual(result.verses[0].text, "In the beginning was the Word...", "unexpected verse text");
+assertEqual(result.searchType, "references", "unexpected searchType");
 
 // Confirm the file-token fallback works with no credentials at all —
 // this is now the default, not an error (see DIFFERENCES.md).

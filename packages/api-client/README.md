@@ -153,6 +153,38 @@ new LsmRecoveryVersionClient({ appId: "only-this-one" });
 // throws IncompleteCredentialsError
 ```
 
+### Word search mode
+
+`GetVersesParams.string` doesn't have to be a citation. If the API
+doesn't recognize it as a reference, it falls back to a full-text
+search over the whole Bible, and `result.searchType` tells you which
+happened — this is confirmed live but **completely undocumented** by
+LSM (see [`DIFFERENCES.md`](./DIFFERENCES.md)):
+
+```ts
+const result = await client.getVerses({ string: "eternal life" });
+result.searchType; // "words" — no citation was recognized
+result.verses;      // every verse containing "eternal" and "life"
+
+const ref = await client.getVerses({ string: "John 3:16" });
+ref.searchType; // "references"
+```
+
+A few things confirmed about word-search mode:
+- A multi-word query matches verses containing *all* the words, not
+  necessarily as an exact adjacent phrase — e.g. `"eternal life"` also
+  matches Daniel 12:2's "life eternal" (reversed) and Matthew 18:8's
+  "eternal fire" (same words, unrelated phrase), not just the exact
+  phrase "eternal life".
+- Exact-phrase matches are returned first; looser word-only matches are
+  appended at the end — so **result order is relevance-ranked, not
+  Bible order**, unlike reference-lookup mode.
+- Very common connecting words (e.g. "the") appear to be effectively
+  ignored rather than narrowing the match set.
+- It also fires — silently, with an empty result rather than an error —
+  for input the docs claim should be rejected outright (disallowed
+  characters). See `DIFFERENCES.md` for the exact example.
+
 ## Building reference strings
 
 `GetVersesParams.string` is a plain string — this package doesn't know

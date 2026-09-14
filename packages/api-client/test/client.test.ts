@@ -16,7 +16,14 @@ import {
  * a plain string, built however the caller likes.
  */
 
-const EMPTY_BODY = { inputstring: "", detected: "", verses: [], message: "", copyright: "" };
+const EMPTY_BODY = {
+  inputstring: "",
+  detected: "",
+  verses: [],
+  message: "",
+  copyright: "",
+  searchType: "references" as const,
+};
 
 /** A fetch stub that records every call and defers the response to `handler`. */
 function makeCapturingFetch(handler: (url: string, init: RequestInit) => Response | Promise<Response>) {
@@ -309,12 +316,37 @@ test("getVerses returns the parsed JSON response body as-is", async () => {
     verses: [{ ref: "John 1:14", text: "In the beginning was the Word...", urlpfx: "abc" }],
     message: "",
     copyright: "© LSM",
+    searchType: "references" as const,
   };
   const { fetchImpl } = makeCapturingFetch(() => okResponse(body));
   const client = new LsmRecoveryVersionClient({ appId: "id", token: "tok", fetch: fetchImpl });
 
   const result = await client.getVerses({ string: "John 1:14" });
 
+  assert.deepEqual(result, body);
+});
+
+test("getVerses returns searchType: \"words\" for a full-text word-search response", async () => {
+  // Confirmed live: e.g. String=grace or String=eternal life resolve no
+  // citation, so the API falls back to a full-text search and reports
+  // searchType: "words" instead of "references" — see DIFFERENCES.md.
+  const body = {
+    inputstring: "grace",
+    detected: "Psa. 45:2; John 1:14; John 1:16; John 1:17.",
+    verses: [
+      { ref: "John 1:14", text: "...full of grace and reality.", urlpfx: "43_John_1.htm#Joh1-14" },
+      { ref: "John 1:16", text: "...and grace upon grace.", urlpfx: "43_John_1.htm#Joh1-16" },
+    ],
+    message: "",
+    copyright: "© LSM",
+    searchType: "words" as const,
+  };
+  const { fetchImpl } = makeCapturingFetch(() => okResponse(body));
+  const client = new LsmRecoveryVersionClient({ appId: "id", token: "tok", fetch: fetchImpl });
+
+  const result = await client.getVerses({ string: "grace" });
+
+  assert.equal(result.searchType, "words");
   assert.deepEqual(result, body);
 });
 
@@ -419,6 +451,7 @@ test("throws UnauthorizedError on a 200 response whose message reports being una
     verses: [],
     message: "Error: You are not authorized to use this API. See https://api.lsm.org for more details.",
     copyright: "© LSM",
+    searchType: "references" as const,
   };
   const { fetchImpl } = makeCapturingFetch(() => okResponse(body));
   const client = new LsmRecoveryVersionClient({ appId: "id", token: "tok", fetch: fetchImpl });
@@ -441,6 +474,7 @@ test("throws InvalidInputError on a 200 response whose message starts with \"Err
     verses: [],
     message: "Error: unrecognized book or reference.",
     copyright: "© LSM",
+    searchType: "words" as const,
   };
   const { fetchImpl } = makeCapturingFetch(() => okResponse(body));
   const client = new LsmRecoveryVersionClient({ appId: "id", token: "tok", fetch: fetchImpl });
@@ -470,6 +504,7 @@ test("does not treat a non-error, non-empty message (e.g. the 50-verse-limit not
     verses: [{ ref: "John 1:1", text: "In the beginning..." }],
     message: "You have exceeded 50 verses, which is the maximum number of verses sent per request. (You requested 51 verses)",
     copyright: "© LSM",
+    searchType: "references" as const,
   };
   const { fetchImpl } = makeCapturingFetch(() => okResponse(body));
   const client = new LsmRecoveryVersionClient({ appId: "id", token: "tok", fetch: fetchImpl });

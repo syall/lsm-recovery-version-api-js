@@ -19,6 +19,7 @@ export async function runBrowserSmoke({ page, globalName, bundleSource }) {
         verses: [{ ref: "John 1:14", text: "In the beginning was the Word...", urlpfx: "abc" }],
         message: "",
         copyright: "© LSM",
+        searchType: "references",
       };
       return new Response(JSON.stringify(body), { status: 200 });
     };
@@ -57,6 +58,7 @@ export async function runBrowserSmoke({ page, globalName, bundleSource }) {
   );
   assert.equal(result.verses.detected, "John 1:14");
   assert.equal(result.verses.verses.length, 1);
+  assert.equal(result.verses.searchType, "references");
 
   assert.equal(result.fallbackCalls.length, 1, "expected exactly one fetch call for the fallback client");
   const fallbackUrl = new URL(result.fallbackCalls[0].url);
