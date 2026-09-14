@@ -1,5 +1,11 @@
 # @syall/verse-reference-builder
 
+## 0.1.4
+
+### Patch Changes
+
+- e59ad19: Verify release via publish workflow.
+
 ## 0.1.3
 
 Initial pre-1.0 release. The public API may still change without a
