@@ -1,5 +1,11 @@
 # @syall/verse-reference-builder
 
+## 0.1.5
+
+### Patch Changes
+
+- 295f4dc: Updated documentation for 0.13.0 that was inconsistent with the repository.
+
 ## 0.1.4
 
 ### Patch Changes

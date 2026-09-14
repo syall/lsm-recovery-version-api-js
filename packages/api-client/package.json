@@ -1,6 +1,6 @@
 {
   "name": "@syall/lsm-recovery-version-api-js",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "TypeScript client for the LSM Text Only Holy Bible Recovery Version API.",
   "keywords": [
     "lsm",
