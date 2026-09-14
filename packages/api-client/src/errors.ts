@@ -14,15 +14,21 @@ export class LsmApiError extends Error {
 /**
  * The `String` parameter contained a disallowed character, an
  * unrecognized book/chapter/verse reference, or otherwise didn't conform
- * to the required input format. LSM's docs don't specify HTTP status
- * codes for any error condition, and a direct test against the live API
- * confirms at least the unauthorized case (see `UnauthorizedError`)
- * returns HTTP 200 rather than a 4xx status, reporting the failure only
- * via the JSON body's `message` field. To cover both possibilities,
- * this is thrown either when the response's HTTP status is literally
- * 400, or when a 200 response's `message` starts with some
+ * to the required input format — per LSM's documentation, which claims
+ * this "will result in an error and no output."
+ *
+ * Live testing did not confirm that claim: a disallowed-character input
+ * (e.g. `"John @#$% 3:16"`) comes back as an ordinary `200` response
+ * with `verses: []`, `message: ""`, and `searchType: "words"` — not an
+ * `Error:`-prefixed message. No live input has been found that actually
+ * triggers this error via the message-based check below, or a real
+ * HTTP 400. This class (and the client's checks for it) are kept as
+ * defense in depth — thrown either when the response's HTTP status is
+ * literally 400, or when a 200 response's `message` starts with some
  * capitalization of "Error" and isn't the unauthorized case (see
- * `client.ts`'s `request()` and `assertMessageIsNotAnError()`).
+ * `client.ts`'s `request()` and `assertMessageIsNotAnError()`) — in
+ * case some other malformed-input scenario not yet found does surface
+ * this way, or LSM's behavior changes. See DIFFERENCES.md.
  */
 export class InvalidInputError extends LsmApiError {
   constructor(status: number, body?: string) {

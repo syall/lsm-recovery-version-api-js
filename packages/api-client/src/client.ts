@@ -83,13 +83,26 @@ export class LsmRecoveryVersionClient {
   }
 
   /**
-   * LSM's API can report a hard failure — missing/invalid credentials, a
-   * malformed reference string — with an HTTP 200 response rather than a
-   * 4xx status; the failure only shows up in the JSON body's `message`
-   * field. Confirmed against the live API for the unauthorized case:
-   * status 200, `verses: []`, and
-   * `message: "Error: You are not authorized to use this API...."`. A
-   * non-error `message` (e.g. the 50-verse-limit notice) never starts
+   * LSM's API can report a hard failure — missing/invalid credentials —
+   * with an HTTP 200 response rather than a 4xx status; the failure only
+   * shows up in the JSON body's `message` field. Confirmed against the
+   * live API for the unauthorized case (both with no credentials at all,
+   * and with a well-formed but bogus Basic Auth `appId:token` pair —
+   * both produce the identical HTTP 200 response): `verses: []` and
+   * `message: "Error: You are not authorized to use this API...."`.
+   *
+   * The docs additionally claim a malformed/disallowed-character input
+   * string "will result in an error and no output" — live testing found
+   * the opposite: it comes back as a plain success (`200`, `verses: []`,
+   * `message: ""`, `searchType: "words"`), not an `Error:`-prefixed
+   * message (see DIFFERENCES.md). No live input has been found that
+   * actually produces a non-authorization `Error:` message or a real
+   * 4xx status from `txo.php` itself. `InvalidInputError` and this
+   * method's handling of it are kept anyway, as defense in depth, in
+   * case some other malformed-input case (not yet found) does surface
+   * this way, or LSM's behavior changes.
+   *
+   * A non-error `message` (e.g. the 50-verse-limit notice) never starts
    * with "Error", so this only fires for genuine failures.
    */
   private assertMessageIsNotAnError(status: number, body: string, parsed: VersesResponse): void {
@@ -128,6 +141,14 @@ export class LsmRecoveryVersionClient {
 
     if (res.ok) return res;
 
+    // Kept as a safety net: live testing against `txo.php` has not
+    // produced a real 401/400 for auth or input errors (both surface via
+    // the JSON body's `message` field on an HTTP 200 instead — see
+    // `assertMessageIsNotAnError` above and DIFFERENCES.md). LSM's docs
+    // don't rule out a genuine HTTP-level error under other conditions
+    // (a true server error, an upstream outage, a future API change),
+    // so this stays in place rather than being removed just because it
+    // hasn't been observed firing yet.
     const body = await res.text().catch(() => undefined);
     if (res.status === 401) throw new UnauthorizedError(res.status, body);
     if (res.status === 400) throw new InvalidInputError(res.status, body);

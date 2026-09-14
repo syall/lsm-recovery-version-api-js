@@ -225,10 +225,13 @@ package does not support LSM's documented OSIS input mode (`In=osis`)
 - **Errors can arrive as HTTP 200**: LSM's docs don't specify HTTP status
   codes for any error condition, and the live API has been observed
   reporting an unauthorized request as HTTP 200 with an empty `verses`
-  array and a `message` starting with "Error: ..." rather than a 401.
-  `getVerses()` checks for this in addition to the HTTP status, so
-  `InvalidInputError`/`UnauthorizedError` are still thrown correctly —
-  you don't need to inspect `message` yourself.
+  array and a `message` starting with "Error: ..." rather than a 401 —
+  confirmed identical whether credentials are omitted entirely or a
+  bogus `appId`/`token` pair is sent. `getVerses()` checks for this in
+  addition to the HTTP status, so `UnauthorizedError` is still thrown
+  correctly — you don't need to inspect `message` yourself. See
+  [`DIFFERENCES.md`](./DIFFERENCES.md) for what this package could
+  *not* confirm (a genuine non-authorization input error).
 
 ## Development
 

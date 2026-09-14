@@ -391,6 +391,11 @@ test("wraps a rejecting fetch implementation (network failure) in NetworkError",
 });
 
 // --- Error mapping ---
+//
+// Kept even though live testing (see DIFFERENCES.md) never produced a
+// real 401/400 from txo.php itself — these are a defensive safety net
+// in case the server ever does respond with a genuine HTTP error status,
+// not a claim that it currently does.
 
 test("throws UnauthorizedError on a 401 response, carrying status and body", async () => {
   const { fetchImpl } = makeCapturingFetch(() => new Response("bad credentials", { status: 401 }));
@@ -445,6 +450,10 @@ test("throws a generic LsmApiError (not a subclass) on any other error status", 
 });
 
 test("throws UnauthorizedError on a 200 response whose message reports being unauthorized", async () => {
+  // Confirmed live: this is what the real API returns both when no
+  // credentials are sent at all, and when a well-formed but bogus
+  // appId:token pair is sent via Basic Auth — identical response either
+  // way. See DIFFERENCES.md.
   const body = {
     inputstring: "abc",
     detected: "Gen. 15:5",
@@ -468,6 +477,9 @@ test("throws UnauthorizedError on a 200 response whose message reports being una
 });
 
 test("throws InvalidInputError on a 200 response whose message starts with \"Error\" for a non-authorization reason", async () => {
+  // No live input has been found that actually produces this shape (see
+  // DIFFERENCES.md and errors.ts) — this test documents the client's
+  // defensive handling of it, not a confirmed live scenario.
   const body = {
     inputstring: "Not A Book 1:1",
     detected: "",

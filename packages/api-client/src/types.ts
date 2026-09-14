@@ -26,8 +26,13 @@ export interface Verse {
   text: string;
   /**
    * URL postfix for building a Recovery Version website/app link
-   * (https://text.recoveryversion.bible/<urlpfx>). Not always present
-   * on error responses.
+   * (https://text.recoveryversion.bible/<urlpfx>). Confirmed live to
+   * always be present as a key on every verse entry, though it can be
+   * an empty string (`""`) when the entry doesn't correspond to a real
+   * verse (e.g. requesting `"Zzz 99:99"` returns
+   * `{"ref": " 99:99", "urlpfx": "", "text": "No such reference"}`).
+   * Kept optional here regardless, since LSM's own docs omit it from
+   * their example response schema entirely.
    */
   urlpfx?: string;
 }
