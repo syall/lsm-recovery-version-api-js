@@ -72,7 +72,7 @@ export class LsmRecoveryVersionClient {
   async getVerses(params: GetVersesParams): Promise<VersesResponse> {
     const res = await this.request(params);
     const text = await res.text();
-    let parsed;
+    let parsed: VersesResponse;
     try {
       parsed = JSON.parse(text) as VersesResponse;
     } catch (cause) {
