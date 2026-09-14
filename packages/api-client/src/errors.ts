@@ -32,12 +32,18 @@ export class InvalidInputError extends LsmApiError {
 }
 
 /**
- * Missing or invalid Basic Auth credentials (app id / token). LSM's docs
- * don't document HTTP status codes for any error condition, and a direct
- * test against the live API confirms an unauthorized request returns
- * HTTP 200 (not 401) with an empty `verses` array and a `message` like
- * "Error: You are not authorized to use this API...". To cover both
- * possibilities, this is thrown either when the response status is
+ * Missing or invalid Basic Auth credentials (app id / token), or —
+ * since this package now falls back to a public `file=` token when no
+ * `appId`/`token` is configured (see `LsmClientConfig` in types.ts) —
+ * a revoked/invalid `file=` token. LSM's docs don't document HTTP
+ * status codes for any error condition, and live testing confirms an
+ * unauthorized request returns HTTP 200 (not 401) with an empty
+ * `verses` array and a `message` like
+ * "Error: You are not authorized to use this API...". This was
+ * confirmed identical for two different causes: omitting all
+ * credentials, and sending a well-formed but bogus Basic Auth
+ * `appId:token` pair — both produce the exact same response. To cover
+ * both possibilities, this is thrown either when the response status is
  * literally 401, or when a 200 response's `message` starts with some
  * capitalization of "Error" and mentions being unauthorized (see
  * `client.ts`'s `request()` and `assertMessageIsNotAnError()`).
@@ -77,15 +83,21 @@ export class NetworkError extends LsmApiError {
 
 /**
  * Thrown synchronously by the LsmRecoveryVersionClient constructor when
- * `appId` and/or `token` is missing. LSM's API requires HTTP Basic
- * Authentication on every request (https://api.lsm.org/recver/txo-docs.htm) —
- * there is no anonymous, unauthenticated mode — so both are required and
- * this fails fast rather than sending a request the API would reject
- * anyway.
+ * exactly one of `appId`/`token` is supplied. Supplying **both** uses
+ * HTTP Basic Authentication, LSM's documented auth scheme
+ * (https://api.lsm.org/recver/txo-docs.htm); supplying **neither**
+ * (the default) falls back to a public `file=` token the production
+ * `text.recoveryversion.bible` widget itself uses, confirmed live to
+ * work with no registration — see `LsmClientConfig` in types.ts and
+ * DIFFERENCES.md. Supplying only one of the two is always a
+ * configuration mistake — there's no partial-credentials mode to fall
+ * back into — so this fails fast rather than sending a request that
+ * would either be misinterpreted or silently ignore the one field you
+ * did set.
  */
 export class IncompleteCredentialsError extends Error {
   constructor() {
-    super("Both `appId` and `token` are required.");
+    super("`appId` and `token` must be supplied together, or not at all (see LsmClientConfig).");
     this.name = "IncompleteCredentialsError";
   }
 }

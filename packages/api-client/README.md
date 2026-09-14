@@ -2,6 +2,15 @@
 
 TypeScript client for the LSM Text Only Holy Bible Recovery Version API.
 
+> **Documented vs. observed API behavior**: several things in this
+> README (and in this package's own doc comments) reflect *live,
+> verified* behavior of `api.lsm.org` that differs from — or simply
+> isn't mentioned in — LSM's own published docs
+> (https://api.lsm.org/recver/txo-docs.htm). See
+> [`DIFFERENCES.md`](./DIFFERENCES.md) for the full catalogue with
+> examples. This package follows the live behavior wherever the two
+> disagree.
+
 > Looking for the verse-reference string builder? It's a separate,
 > independent package: [`@syall/verse-reference-builder`](https://www.npmjs.com/package/@syall/verse-reference-builder)
 > ([source](../verse-reference-builder)). This package has no
@@ -45,8 +54,8 @@ from a CDN with no build step:
 <script>
   const { LsmRecoveryVersionClient } = LsmRecoveryVersionApi;
 
-  // appId/token are required (see "Usage" below) — substitute your own.
-  const client = new LsmRecoveryVersionClient({ appId: "...", token: "..." });
+  // No appId/token needed to try it out — see "Authentication" below.
+  const client = new LsmRecoveryVersionClient();
 
   client.getVerses({ string: "John 1:14" }).then((result) => console.log(result));
 </script>
@@ -55,6 +64,42 @@ from a CDN with no build step:
 (`package.json`'s `unpkg`/`jsdelivr` fields point at this same file, so
 `https://cdn.jsdelivr.net/npm/@syall/lsm-recovery-version-api-js` also
 resolves to it.)
+
+## Authentication
+
+LSM's own docs describe exactly one auth scheme: HTTP Basic Auth with
+an `appId`/`token` pair you register at api.lsm.org. Live testing found
+a second, undocumented way the API actually accepts requests — a public
+`file=` query-parameter site key, which is what the production
+`text.recoveryversion.bible` widget itself sends (see
+[`DIFFERENCES.md`](./DIFFERENCES.md)). This package supports both,
+chosen automatically from what you configure:
+
+```ts
+import { LsmRecoveryVersionClient } from "@syall/lsm-recovery-version-api-js";
+
+// 1. No credentials (the default) — uses the built-in public file=
+//    token. Works immediately, no registration needed. This key isn't
+//    issued to this package specifically, so LSM could revoke or
+//    rate-limit it without notice — fine for trying things out or
+//    casual/low-volume use, not guaranteed for production traffic.
+const quickStart = new LsmRecoveryVersionClient();
+
+// 2. Your own registered credentials — sent as HTTP Basic Auth, LSM's
+//    documented scheme. Both fields are required together.
+const production = new LsmRecoveryVersionClient({
+  appId: process.env.LSM_APP_ID,
+  token: process.env.LSM_TOKEN,
+});
+
+// 3. A different file= token, if LSM issues you one directly, or the
+//    built-in default is ever revoked.
+const customFileToken = new LsmRecoveryVersionClient({ fileToken: "..." });
+```
+
+Supplying only one of `appId`/`token` is always a configuration mistake
+and throws `IncompleteCredentialsError` synchronously — there's no
+partial-credentials mode to fall into.
 
 ## Usage
 
@@ -67,9 +112,6 @@ import {
   NetworkError,
 } from "@syall/lsm-recovery-version-api-js";
 
-// appId/token are both required — generate them at api.lsm.org and
-// pass both. Omitting either throws IncompleteCredentialsError
-// synchronously.
 const client = new LsmRecoveryVersionClient({
   appId: process.env.LSM_APP_ID,
   token: process.env.LSM_TOKEN,
@@ -101,13 +143,14 @@ try {
 ```
 
 Constructing the client itself can throw `IncompleteCredentialsError` —
-that's a configuration mistake (`appId` and/or `token` missing), not an
-API-call failure, so it's usually left uncaught rather than handled
-alongside the errors above:
+that's a configuration mistake (exactly one of `appId`/`token` set, see
+[Authentication](#authentication) above), not an API-call failure, so
+it's usually left uncaught rather than handled alongside the errors
+above:
 
 ```ts
 new LsmRecoveryVersionClient({ appId: "only-this-one" });
-// throws IncompleteCredentialsError: "Both `appId` and `token` are required."
+// throws IncompleteCredentialsError
 ```
 
 ## Building reference strings
@@ -193,7 +236,8 @@ bundle, loads it into a real headless browser via
 [`playwright-core`](https://www.npmjs.com/package/playwright-core),
 stubs `window.fetch` (no network access needed), and confirms
 `window.LsmRecoveryVersionApi` is exposed and `getVerses()` works end
-to end (see `test/browser-smoke.mjs` and the shared
+to end — for both the default (no-credentials, file-token fallback)
+and Basic Auth paths (see `test/browser-smoke.mjs` and the shared
 `../../scripts/test-browser.mjs` harness).
 
 By default it drives whatever Chrome or Edge is already installed on
@@ -242,11 +286,12 @@ job above), this package claims to work with Bun and Deno too — both
 support the plain ESM output directly. `test/runtime-smoke.mjs` (run
 via the shared `../../scripts/smoke-test-esm.mjs` harness) verifies
 that claim: it imports the *built* `dist/esm` output (as a real
-consumer would), exercises `getVerses()` against a stubbed `fetch`, and
-checks the `IncompleteCredentialsError` constructor validation —
-written with only standard Web/JS APIs so the identical file runs
-unmodified under Node, Bun, or Deno. Run it locally with (each script
-builds `dist/esm` itself first, so no separate build step is needed):
+consumer would), exercises `getVerses()` against a stubbed `fetch` for
+both the Basic Auth and file-token-fallback paths, and checks the
+`IncompleteCredentialsError` constructor validation — written with only
+standard Web/JS APIs so the identical file runs unmodified under Node,
+Bun, or Deno. Run it locally with (each script builds `dist/esm` itself
+first, so no separate build step is needed):
 
 ```bash
 npm run test:runtime:bun   # requires Bun installed

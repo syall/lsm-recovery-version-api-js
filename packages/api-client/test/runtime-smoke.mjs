@@ -38,10 +38,29 @@ assertEqual(result.detected, "John 1:14", "unexpected detected reference");
 assertEqual(result.verses.length, 1, "unexpected verse count");
 assertEqual(result.verses[0].text, "In the beginning was the Word...", "unexpected verse text");
 
-// Also confirm the mandatory-credentials validation (IncompleteCredentialsError)
-// works identically here: both appId and token are required, so omitting
-// either one must throw synchronously.
-for (const badConfig of [{}, { appId: "only-one" }, { token: "only-one" }]) {
+// Confirm the file-token fallback works with no credentials at all —
+// this is now the default, not an error (see DIFFERENCES.md).
+{
+  const fallbackCalls = [];
+  const fallbackFetch = async (input, init) => {
+    fallbackCalls.push({ url: String(input), init });
+    return fetchImpl(input, init);
+  };
+  const fallbackClient = new LsmRecoveryVersionClient({ fetch: fallbackFetch });
+  await fallbackClient.getVerses({ string: "John 1:14" });
+  const url = new URL(fallbackCalls[0].url);
+  if (!url.searchParams.has("file")) {
+    throw new Error("expected the no-credentials client to send a file= query parameter");
+  }
+  if (fallbackCalls[0].init.headers && fallbackCalls[0].init.headers.Authorization) {
+    throw new Error("expected the no-credentials client not to send an Authorization header");
+  }
+}
+
+// Confirm the mandatory-credentials validation (IncompleteCredentialsError)
+// still fires for a *partial* config — exactly one of appId/token — while
+// an empty config no longer throws (it uses the file-token fallback above).
+for (const badConfig of [{ appId: "only-one" }, { token: "only-one" }]) {
   let threw = false;
   try {
     new LsmRecoveryVersionClient(badConfig);
@@ -52,5 +71,16 @@ for (const badConfig of [{}, { appId: "only-one" }, { token: "only-one" }]) {
     throw new Error(
       `expected constructing with ${JSON.stringify(badConfig)} to throw IncompleteCredentialsError`,
     );
+  }
+}
+{
+  let threw = false;
+  try {
+    new LsmRecoveryVersionClient({});
+  } catch {
+    threw = true;
+  }
+  if (threw) {
+    throw new Error("expected constructing with {} to NOT throw (file-token fallback)");
   }
 }

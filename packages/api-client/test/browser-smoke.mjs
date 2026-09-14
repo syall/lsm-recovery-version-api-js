@@ -33,9 +33,20 @@ export async function runBrowserSmoke({ page, globalName, bundleSource }) {
       throw new Error(`window.${globalName} was not defined by the UMD bundle.`);
     }
     const { LsmRecoveryVersionClient } = api;
+
     const client = new LsmRecoveryVersionClient({ appId: "id", token: "tok" });
     const verses = await client.getVerses({ string: "John 1:14" });
-    return { verses, calls: window.__fetchCalls };
+    const calls = window.__fetchCalls.slice();
+
+    // Also exercise the no-credentials file-token fallback (the default
+    // when appId/token are omitted — see DIFFERENCES.md) end to end
+    // through the same UMD bundle.
+    window.__fetchCalls.length = 0;
+    const fallbackClient = new LsmRecoveryVersionClient();
+    await fallbackClient.getVerses({ string: "John 1:14" });
+    const fallbackCalls = window.__fetchCalls.slice();
+
+    return { verses, calls, fallbackCalls };
   }, globalName);
 
   assert.equal(result.calls.length, 1, "expected exactly one fetch call");
@@ -46,4 +57,8 @@ export async function runBrowserSmoke({ page, globalName, bundleSource }) {
   );
   assert.equal(result.verses.detected, "John 1:14");
   assert.equal(result.verses.verses.length, 1);
+
+  assert.equal(result.fallbackCalls.length, 1, "expected exactly one fetch call for the fallback client");
+  const fallbackUrl = new URL(result.fallbackCalls[0].url);
+  assert.equal(fallbackUrl.searchParams.has("file"), true, "expected the fallback client to send a file= parameter");
 }

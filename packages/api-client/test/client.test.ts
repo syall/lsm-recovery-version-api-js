@@ -51,28 +51,21 @@ test("constructs fine with both appId and token provided", () => {
   assert.doesNotThrow(() => new LsmRecoveryVersionClient({ appId: "id", token: "tok" }));
 });
 
-test("throws IncompleteCredentialsError when neither appId nor token is provided", () => {
-  // Basic Auth is mandatory (see client.ts) — TypeScript itself now blocks
-  // this call site, so this simulates an untyped/JS caller who omits both.
-  assert.throws(
-    () => new LsmRecoveryVersionClient({} as unknown as ConstructorParameters<typeof LsmRecoveryVersionClient>[0]),
-    (err: unknown) => {
-      assert.ok(err instanceof IncompleteCredentialsError);
-      assert.equal(err.name, "IncompleteCredentialsError");
-      assert.equal(err.message, "Both `appId` and `token` are required.");
-      return true;
-    },
-  );
+test("constructs fine with no config at all (defaults to the public file-token fallback)", () => {
+  assert.doesNotThrow(() => new LsmRecoveryVersionClient());
+});
+
+test("constructs fine with an empty config object (same as no config)", () => {
+  assert.doesNotThrow(() => new LsmRecoveryVersionClient({}));
 });
 
 test("throws IncompleteCredentialsError when only appId is provided", () => {
   assert.throws(
-    () =>
-      new LsmRecoveryVersionClient({
-        appId: "id",
-      } as unknown as ConstructorParameters<typeof LsmRecoveryVersionClient>[0]),
+    () => new LsmRecoveryVersionClient({ appId: "id" }),
     (err: unknown) => {
       assert.ok(err instanceof IncompleteCredentialsError);
+      assert.equal(err.name, "IncompleteCredentialsError");
+      assert.equal(err.message, "`appId` and `token` must be supplied together, or not at all (see LsmClientConfig).");
       return true;
     },
   );
@@ -80,15 +73,63 @@ test("throws IncompleteCredentialsError when only appId is provided", () => {
 
 test("throws IncompleteCredentialsError when only token is provided", () => {
   assert.throws(
-    () =>
-      new LsmRecoveryVersionClient({
-        token: "tok",
-      } as unknown as ConstructorParameters<typeof LsmRecoveryVersionClient>[0]),
+    () => new LsmRecoveryVersionClient({ token: "tok" }),
     (err: unknown) => {
       assert.ok(err instanceof IncompleteCredentialsError);
       return true;
     },
   );
+});
+
+// --- Auth mode: public file token (default) vs Basic Auth ---
+
+test("sends the default public file= token, and no Authorization header, when no credentials are configured", async () => {
+  const { fetchImpl, calls } = makeCapturingFetch(() => okResponse());
+  const client = new LsmRecoveryVersionClient({ fetch: fetchImpl });
+
+  await client.getVerses({ string: "John 1:14" });
+
+  const url = new URL(calls[0]!.url);
+  assert.equal(url.searchParams.get("file"), "d2ViXzBkMWU1NDZhLWI4ZTQtNGEwNy04NDk5LTgzYWFkY2MwZmE2Yw==");
+  const headers = calls[0]!.init.headers as Record<string, string>;
+  assert.equal(headers.Authorization, undefined);
+});
+
+test("respects a configured fileToken override in the no-credentials mode", async () => {
+  const { fetchImpl, calls } = makeCapturingFetch(() => okResponse());
+  const client = new LsmRecoveryVersionClient({ fileToken: "my-custom-token", fetch: fetchImpl });
+
+  await client.getVerses({ string: "John 1:14" });
+
+  const url = new URL(calls[0]!.url);
+  assert.equal(url.searchParams.get("file"), "my-custom-token");
+});
+
+test("ignores a configured fileToken when appId/token are both provided (Basic Auth takes precedence)", async () => {
+  const { fetchImpl, calls } = makeCapturingFetch(() => okResponse());
+  const client = new LsmRecoveryVersionClient({
+    appId: "id",
+    token: "tok",
+    fileToken: "should-be-ignored",
+    fetch: fetchImpl,
+  });
+
+  await client.getVerses({ string: "John 1:14" });
+
+  const url = new URL(calls[0]!.url);
+  assert.equal(url.searchParams.has("file"), false);
+  const headers = calls[0]!.init.headers as Record<string, string>;
+  assert.match(headers.Authorization, /^Basic /);
+});
+
+test("does not send a file= parameter when Basic Auth credentials are configured", async () => {
+  const { fetchImpl, calls } = makeCapturingFetch(() => okResponse());
+  const client = new LsmRecoveryVersionClient({ appId: "id", token: "tok", fetch: fetchImpl });
+
+  await client.getVerses({ string: "John 1:14" });
+
+  const url = new URL(calls[0]!.url);
+  assert.equal(url.searchParams.has("file"), false);
 });
 
 // --- URL construction ---
@@ -219,6 +260,23 @@ test("throws when constructing a credentialed client while no base64 encoder (Bu
     delete (globalThis as Record<string, unknown>).Buffer;
     delete (globalThis as Record<string, unknown>).btoa;
     assert.throws(() => new LsmRecoveryVersionClient({ appId: "id", token: "tok" }), /No base64 encoder available/);
+  } finally {
+    (globalThis as Record<string, unknown>).Buffer = originalBuffer;
+    (globalThis as Record<string, unknown>).btoa = originalBtoa;
+  }
+});
+
+test("does not require a base64 encoder when using the default (no-credentials) file-token mode", () => {
+  // Basic Auth is the only path that needs to base64-encode anything —
+  // the file-token fallback sends a plain query parameter, so
+  // constructing a client with no credentials must work even in an
+  // environment with neither Buffer nor btoa.
+  const originalBuffer = (globalThis as Record<string, unknown>).Buffer;
+  const originalBtoa = (globalThis as Record<string, unknown>).btoa;
+  try {
+    delete (globalThis as Record<string, unknown>).Buffer;
+    delete (globalThis as Record<string, unknown>).btoa;
+    assert.doesNotThrow(() => new LsmRecoveryVersionClient());
   } finally {
     (globalThis as Record<string, unknown>).Buffer = originalBuffer;
     (globalThis as Record<string, unknown>).btoa = originalBtoa;
