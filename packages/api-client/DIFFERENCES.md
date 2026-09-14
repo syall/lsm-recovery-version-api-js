@@ -23,7 +23,7 @@ used real registered `appId`/`token` credentials.
 | 4 | Disallowed characters in `String` | "Using any other kind of character in an input string will result in an error and no output." | No error at all — a `200` with `"verses": []`, `"message": ""`, and `"searchType": "words"`. It's silently treated as a (zero-result) word search, not flagged as invalid. | `String=John @#$% 3:16` → `{"detected": ".", "verses": [], "message": "", "searchType": "words"}`. Junk *appended* to an otherwise-valid reference is just ignored instead: `String=John 3:16 😀` still resolves to John 3:16. |
 | 5 | Full-text word search mode | Not mentioned anywhere in the docs — the docs describe `String` purely as a citation grammar. | When `String` doesn't resolve to a recognized reference, the API transparently falls back to a full-text search of the whole Bible and returns matching verses, tagged `"searchType": "words"` (vs. `"references"` for a normal citation lookup). See "Word search mode, in detail" below. | `String=grace` → 49 matched verses from Psalms through 1 Corinthians, each shaped exactly like a normal `{ref, text, urlpfx}` entry. |
 | 6 | `searchType` response field | Absent from the docs' response schema entirely (both the XML and JSON examples). | Present on **every** response tested, including error/unauthorized responses — always either `"references"` or `"words"`. | The "not authorized" response for `String=John 3:16` still includes `"searchType": "references"`, because the reference is recognized before the auth check fails. |
-| 7 | `Lang` values | Documented as `eng` (default) or `spa` only; no stated behavior for anything else. | Anything else — tested with an arbitrary string — 500s with an empty body. This is the one case found where the API *does* return a real non-200 HTTP status. | `Lang=xyz` → `500`, empty response body. |
+| 7 | `Lang` values | Documented as `eng` (default) or `spa` only; no stated behavior for anything else. | Three more values also work, returning correctly translated `detected`/`verses[].text`: `por` (Portuguese), `zho` (Chinese), `tag` (Tagalog). Any *other* value — including plausible-looking ISO-style guesses for those same three languages — 500s with an empty body. This is the one case found where the API *does* return a real non-200 HTTP status. See "Undocumented `Lang` values, in detail" below. | `Lang=zho` on `String=John 3:16` → `200`, `"detected": "約 3:16."`, Chinese verse text. `Lang=zh` (a plausible ISO 639-1 guess for the same language) → `500`, empty body. `Lang=xyz` → `500`, empty response body. |
 | 8 | `urlpfx` in the response schema | The docs' own example JSON/XML for a successful response omits `urlpfx` from the schema shown (though the field is *named* and described elsewhere in the docs as "URL postfix..."). | Present on every verse entry in every live response tested — including entries for a reference that doesn't actually exist, where it's an empty string rather than a real path. | `String=Zzz 99:99` → `{"ref": " 99:99", "urlpfx": "", "text": "No such reference"}` — the key is present, just empty. |
 | 9 | Empty `String=` parameter | Not addressed. | Returns the API's own HTML documentation landing page (a `<!DOCTYPE html>` page linking to https://api.lsm.org/apis.php) — with `Content-Type: application/json` even though the body is HTML, not JSON. Not a `verses.json`-shaped response at all. | `String=&Out=json` → `200`, `content-type: application/json`, body starts `\n<!DOCTYPE html>\n  <head>...`. |
 
@@ -56,6 +56,37 @@ word that might be treated as a stopword).
   There is no separate "invalid input" search type or error state; a
   query with disallowed characters is just a word search that happens to
   match nothing.
+
+## Undocumented `Lang` values, in detail
+
+LSM's docs only ever mention `eng`/`spa`. The clue that other values might
+work came from `main.js`'s embedded book-abbreviation table (extracted in
+full as `bible-chapter-start-verses.json` — see the project's findings
+doc), where every book has not just `eng`/`spa` abbreviations but also
+`por`, `zho`, and `tag` ones, e.g.:
+
+```json
+"Joh": { "eng": "John", "spa": "Jn.", "por": "Jo", "zho": "約", "tag": "Jua", ... }
+```
+
+That table is for the reader site's own UI, not proof the *API* accepts
+those codes as `Lang` values — so each was tried live against
+`txo.php`, and all three work exactly like `eng`/`spa` do:
+
+| `Lang` | Result on `String=John 3:16` |
+|---|---|
+| `por` | `200`, `"detected": "Jo 3:16."`, Portuguese verse text ("Porque Deus amou o mundo...") |
+| `zho` | `200`, `"detected": "約 3:16."`, Chinese verse text ("神愛世人...") |
+| `tag` | `200`, `"detected": "Jua 3:16."`, Tagalog verse text ("Sapagka't gayon na lamang...") |
+
+To make sure this isn't just a general ISO-639 passthrough, several
+plausible alternate codes for the same three languages were also tried —
+`chi`, `zh` (Chinese), `pt` (Portuguese), `tl` (Tagalog) — and every one of
+them `500`s exactly like a nonsense value (`xyz`) does. So the API
+specifically recognizes these five 3-letter values (`eng`, `spa`, `por`,
+`zho`, `tag`) — the same ones LSM's own reader site happens to use
+internally — and nothing else, rather than accepting a broader set of
+standard language codes.
 
 ## Confirmed matching documented behavior
 

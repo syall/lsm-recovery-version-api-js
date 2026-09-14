@@ -185,6 +185,25 @@ A few things confirmed about word-search mode:
   for input the docs claim should be rejected outright (disallowed
   characters). See `DIFFERENCES.md` for the exact example.
 
+### Language support
+
+LSM's docs only document `lang: "eng"` (the default) and `lang: "spa"`.
+Live testing found the API also accepts three more values — confirmed
+by getting back correctly translated reference labels and verse text,
+not just a `200`:
+
+```ts
+await client.getVerses({ string: "John 3:16", lang: "por" }); // Portuguese
+await client.getVerses({ string: "John 3:16", lang: "zho" }); // Chinese
+await client.getVerses({ string: "John 3:16", lang: "tag" }); // Tagalog
+```
+
+These aren't guessed ISO codes — they're the exact internal language
+keys LSM's own reader site uses (see `DIFFERENCES.md`). Other guesses
+for the same three languages (`"chi"`, `"zh"`, `"pt"`, `"tl"`) — and any
+other value — get a `500` from the API, same as an invalid `Lang`
+always has.
+
 ## Building reference strings
 
 `GetVersesParams.string` is a plain string — this package doesn't know

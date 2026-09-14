@@ -1,5 +1,23 @@
-/** Language used to format verse references in the response. */
-export type Language = "eng" | "spa";
+/**
+ * Language used to format verse references in the response.
+ *
+ * LSM's docs (https://api.lsm.org/recver/txo-docs.htm) document only
+ * `"eng"` (default) and `"spa"`. Live testing found the API actually
+ * accepts three more values — `"por"`, `"zho"`, `"tag"` — confirmed by
+ * requesting the same verse with each and getting back correctly
+ * translated Portuguese, Chinese, and Tagalog text (e.g. `Lang=zho` on
+ * `John 3:16` returns `"detected": "約 3:16."` and Chinese verse text).
+ * These three aren't guessed ISO codes — they're the exact keys LSM's
+ * own `text.recoveryversion.bible` reader site uses internally for its
+ * multi-language book-abbreviation table (see
+ * `bible-chapter-start-verses.json` / the project's findings doc), which
+ * is what pointed at them as candidates worth testing live in the first
+ * place. Guessing at other plausible codes for the same three languages
+ * (`"chi"`, `"zh"`, `"pt"`, `"tl"`) all `500` — so it's specifically
+ * these five 3-letter values and nothing else that work, not a general
+ * ISO-639 language parameter. See DIFFERENCES.md.
+ */
+export type Language = "eng" | "spa" | "por" | "zho" | "tag";
 
 /**
  * Which mode the API resolved the `String` parameter into. Confirmed
