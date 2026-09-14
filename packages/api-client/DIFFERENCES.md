@@ -26,6 +26,7 @@ used real registered `appId`/`token` credentials.
 | 7 | `Lang` values | Documented as `eng` (default) or `spa` only; no stated behavior for anything else. | Three more values also work, returning correctly translated `detected`/`verses[].text`: `por` (Portuguese), `zho` (Chinese), `tag` (Tagalog). Any *other* value — including plausible-looking ISO-style guesses for those same three languages — 500s with an empty body. This is the one case found where the API *does* return a real non-200 HTTP status. See "Undocumented `Lang` values, in detail" below. | `Lang=zho` on `String=John 3:16` → `200`, `"detected": "約 3:16."`, Chinese verse text. `Lang=zh` (a plausible ISO 639-1 guess for the same language) → `500`, empty body. `Lang=xyz` → `500`, empty response body. |
 | 8 | `urlpfx` in the response schema, and unrecognized references | The docs' own example JSON/XML for a successful response omits `urlpfx` from the schema shown (though the field is *named* and described elsewhere in the docs as "URL postfix..."). Nothing in the docs addresses what happens for a well-formed but unrecognized book/chapter/verse. | `urlpfx` is present on every verse entry in every live response tested. For a reference that doesn't actually exist, the API returns a normal `200` with one fake `Verse`-shaped entry standing in for the real result — `searchType` is still `"references"`, no error `message` — rather than an error or an empty `verses` array. See "'No such reference' phantom verses, in detail" below. | `String=Zzz 99:99` (unrecognized book) → `{"ref": " 99:99", "urlpfx": "", "text": "No such reference"}`. |
 | 9 | Empty `String=` parameter | Not addressed. | Returns the API's own HTML documentation landing page (a `<!DOCTYPE html>` page linking to https://api.lsm.org/apis.php) — with `Content-Type: application/json` even though the body is HTML, not JSON. Not a `verses.json`-shaped response at all. This client can't parse it as JSON and surfaces it as a generic `LsmApiError` with the HTML dumped into `body` — there's no dedicated detection for this specific case. | `String=&Out=json` → `200`, `content-type: application/json`, body starts `\n<!DOCTYPE html>\n  <head>...`. |
+| 10 | Localized book abbreviations as `String=` input | Not addressed — the docs' grammar section only ever shows English abbreviations, and never discusses `Lang` interacting with input parsing at all. | Generally work, but *only* paired with the matching `Lang` — and a mismatch doesn't reliably fail, it can silently return a **different, wrong verse**. One specific `zho` abbreviation doesn't work even with its own matching `Lang`. See "Localized abbreviations as `String=` input, in detail" below. | `String=Jo 3:16&Lang=eng` → `200`, a real verse from **Joshua** 3:16 (not John) — "Jo" happens to prefix-match "Josh." under English matching rules. |
 
 ## Word search mode, in detail
 
@@ -124,6 +125,58 @@ don't actually exist:
 - This package doesn't flag or filter these for you — `getVerses()`
   returns the phantom entry as an ordinary `Verse` in `result.verses`,
   since the request succeeded from the API's own point of view.
+
+## Localized abbreviations as `String=` input, in detail
+
+The clue that `Lang` might affect more than just response formatting came
+from the same `bible-chapter-start-verses.json` table referenced above —
+it lists a distinct abbreviation per language for every book, not just a
+display label. That was tested live by sending each language's
+abbreviation as `String=` input alongside its matching `Lang`:
+
+| Input | `Lang` | Result |
+|---|---|---|
+| `Jn. 3:16` | `spa` | Correctly resolves to John 3:16 |
+| `Jo 3:16` | `por` | Correctly resolves to John 3:16 |
+| `Jua 3:16` | `tag` | Correctly resolves to John 3:16 |
+| `太 1:1` | `zho` | Correctly resolves to Matthew 1:1 |
+| `創 1:1` | `zho` | Correctly resolves to Genesis 1:1 |
+| (~15 more `zho`/`spa`/`por`/`tag` abbreviations spot-checked across other books) | matching | All correctly resolved |
+
+So localized abbreviations do work as input — as long as `Lang` matches
+the language the abbreviation belongs to. The danger is what happens when
+it doesn't:
+
+- **`String=Jn. 3:16&Lang=eng`** — "Jn." is John's *Spanish* abbreviation.
+  Under `Lang=eng` this resolves to **Jonah** 3:16 instead (English
+  matching apparently treats "Jn." as a Jonah-ish prefix). Jonah 3 only
+  has 10 verses, so this particular case happens to error out as "no such
+  reference" — but only by luck, not because the mismatch was detected.
+- **`String=Jo 3:16&Lang=eng`** — "Jo" is John's *Portuguese*
+  abbreviation. Under `Lang=eng` this silently returns a real verse from
+  **Joshua** 3:16 instead of John — no error, no warning, just the wrong
+  book's text.
+- **`String=Jua 3:16&Lang=eng`** — "Jua" is John's *Tagalog*
+  abbreviation. Under `Lang=eng` this comes back as "no such reference"
+  (see the section above) rather than resolving to anything.
+
+One specific abbreviation is broken even under its own matching `Lang`:
+John's single-character Chinese abbreviation, `"約"` (from
+`bible-chapter-start-verses.json`), doesn't resolve to John at all under
+`Lang=zho` — used alone it matches nothing, and once a chapter number is
+appended (`"約 3:16"`) it instead prefix-matches **Joshua**'s full Chinese
+name ("約書亞", which happens to start with the same character), not
+John's. The book's actual Chinese name works correctly: both `"約翰
+3:16"` and `"約翰福音 3:16"` (with `Lang=zho`) resolve to John 3:16 as
+expected. This was confirmed not to be an encoding artifact — the
+request's `url` field showed the correct percent-encoding for "約"
+throughout, and 7 other `zho` abbreviations (including "約"'s own
+neighbors in the table) resolved correctly.
+
+This was only spot-checked across a sample of books/languages, not
+verified exhaustively across all 66 books × 5 languages — treat any
+localized abbreviation as input with some caution, and always pass the
+`Lang` it actually belongs to.
 
 ## Confirmed matching documented behavior
 

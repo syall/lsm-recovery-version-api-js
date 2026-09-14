@@ -15,7 +15,12 @@
  * place. Guessing at other plausible codes for the same three languages
  * (`"chi"`, `"zh"`, `"pt"`, `"tl"`) all `500` — so it's specifically
  * these five 3-letter values and nothing else that work, not a general
- * ISO-639 language parameter. See DIFFERENCES.md.
+ * ISO-639 language parameter.
+ *
+ * `lang` also affects how `GetVersesParams.string` itself gets parsed,
+ * not just how the response is formatted — see `GetVersesParams.string`'s
+ * doc comment for the localized-abbreviation caveats that come with that.
+ * See DIFFERENCES.md.
  */
 export type Language = "eng" | "spa" | "por" | "zho" | "tag";
 
@@ -125,6 +130,27 @@ export interface GetVersesParams {
    *   `LsmApiError` ("The API response could not be parsed as JSON")
    *   with the HTML dumped into `body`, rather than any more specific
    *   error. See DIFFERENCES.md.
+   * - **Localized book abbreviations work as input, but only paired with
+   *   the matching `lang`.** Confirmed live: `"Jn. 3:16"` with
+   *   `lang: "spa"`, `"Jo 3:16"` with `lang: "por"`, `"Jua 3:16"` with
+   *   `lang: "tag"`, and most Chinese abbreviations with `lang: "zho"`
+   *   (e.g. `"太 1:1"`, `"創 1:1"`) all resolve correctly. But the SAME
+   *   abbreviation under a mismatched (or default `"eng"`) `lang` doesn't
+   *   reliably fail — it can silently resolve to a completely different,
+   *   wrong book: `"Jn. 3:16"` under `lang: "eng"` resolves to *Jonah*
+   *   3:16 (which doesn't exist, so it errors — but only because Jonah 3
+   *   happens to be short); `"Jo 3:16"` under `lang: "eng"` silently
+   *   returns a real verse from *Joshua* 3:16 instead of John. One
+   *   specific `zho` abbreviation is broken even with the matching
+   *   `lang`: John's single-character abbreviation `"約"` (from
+   *   `bible-chapter-start-verses.json`) doesn't resolve to John at all
+   *   under `lang: "zho"` — it matches nothing alone, and prefix-matches
+   *   *Joshua*'s full Chinese name ("約書亞") once a chapter number is
+   *   appended. The actual Chinese name `"約翰"` (or `"約翰福音"`)
+   *   resolves to John correctly. Only spot-checked, not exhaustively
+   *   verified across all 66 books × 5 languages — treat any localized
+   *   abbreviation as input with caution, and always pass the `lang`
+   *   that matches it. See DIFFERENCES.md.
    */
   string: string;
   /** Reference language; defaults to English server-side. */

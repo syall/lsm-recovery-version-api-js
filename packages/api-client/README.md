@@ -235,7 +235,42 @@ These aren't guessed ISO codes — they're the exact internal language
 keys LSM's own reader site uses (see `DIFFERENCES.md`). Other guesses
 for the same three languages (`"chi"`, `"zh"`, `"pt"`, `"tl"`) — and any
 other value — get a `500` from the API, same as an invalid `Lang`
-always has.
+always has. This package doesn't special-case that `500` — it's not
+confirmed to mean only "unrecognized `lang`," so it surfaces as a plain
+`LsmApiError` like any other non-200 status, rather than a dedicated
+error class that could misattribute some other server-side `500`.
+
+**`lang` doesn't just format the response — it also affects how `string`
+itself gets parsed**, and this is where it gets risky. Localized book
+abbreviations generally work as `string` input, but *only* paired with
+the matching `lang`:
+
+```ts
+await client.getVerses({ string: "Jn. 3:16", lang: "spa" }); // John 3:16, in Spanish
+await client.getVerses({ string: "太 1:1", lang: "zho" });    // Matthew 1:1, in Chinese
+```
+
+The same abbreviation under a mismatched (or default `"eng"`) `lang`
+doesn't reliably fail — it can silently resolve to a **completely
+different, wrong book**, with no error and no indication anything went
+wrong:
+
+```ts
+// "Jo" is John's Portuguese abbreviation, but nothing here mentions
+// Portuguese — this silently returns a real verse from Joshua 3:16.
+await client.getVerses({ string: "Jo 3:16", lang: "eng" });
+```
+
+One specific Chinese abbreviation is broken even with the matching
+`lang`: John's single-character abbreviation `"約"` doesn't resolve to
+John under `lang: "zho"` at all — it prefix-matches Joshua's full
+Chinese name instead once a chapter number is appended. The book's
+actual Chinese name (`"約翰"` / `"約翰福音"`) resolves correctly. This
+was only spot-checked across a sample of abbreviations, not verified
+exhaustively for all 66 books × 5 languages — see `DIFFERENCES.md` for
+the full findings table. **If you accept a book abbreviation from user
+input, always pass the `lang` it actually belongs to**, and treat any
+localized abbreviation as input with some caution.
 
 ## Building reference strings
 
