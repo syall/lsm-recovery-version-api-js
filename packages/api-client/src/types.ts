@@ -114,6 +114,17 @@ export interface GetVersesParams {
    * word search instead (see `SearchType`) — e.g. `"grace"` or
    * `"eternal life"` are valid inputs that return matching verses from
    * anywhere in the Bible, not just a specific reference.
+   *
+   * One more confirmed-live edge case, not validated for you by this
+   * package (it never inspects `string` before sending it):
+   *
+   * - **Empty string** (`string: ""`) doesn't get a `verses`-shaped
+   *   response at all — the API returns its own HTML documentation
+   *   landing page instead, mislabeled `content-type: application/json`.
+   *   `getVerses()` can't parse that as JSON, so it surfaces as a plain
+   *   `LsmApiError` ("The API response could not be parsed as JSON")
+   *   with the HTML dumped into `body`, rather than any more specific
+   *   error. See DIFFERENCES.md.
    */
   string: string;
   /** Reference language; defaults to English server-side. */

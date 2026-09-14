@@ -187,11 +187,18 @@ A few things confirmed about word-search mode:
 
 ### Edge cases in `string`
 
-One confirmed-live behavior worth knowing about before you build
-`string` dynamically (e.g. from user input) — which is not validated
-for you by this package, since it never inspects `string` before
-sending it:
+Two more confirmed-live behaviors worth knowing about before you build
+`string` dynamically (e.g. from user input) — neither is validated for
+you by this package, since it never inspects `string` before sending it:
 
+- **Empty string** (`string: ""`) doesn't return a `verses`-shaped
+  response at all — LSM's API returns its own HTML documentation landing
+  page instead, mislabeled `content-type: application/json`. This
+  package can't parse that as JSON, so it surfaces as a plain
+  `LsmApiError` ("The API response could not be parsed as JSON") with
+  the HTML dumped into `err.body`, rather than any more specific error.
+  If you build `string` from user input, guard against an empty (or
+  whitespace-only) value yourself before calling `getVerses()`.
 - **"No such reference" phantom verses**: a syntactically well-formed
   but non-existent reference (an unrecognized book, or a real book with
   an out-of-range chapter/verse) doesn't error either — it's a normal
@@ -209,7 +216,7 @@ sending it:
   const real = result.verses.filter((v) => v.text !== NO_SUCH_REFERENCE_TEXT);
   ```
 
-  See `DIFFERENCES.md` for the full write-up of this case.
+  See `DIFFERENCES.md` for the full write-up of both cases.
 
 ### Language support
 
