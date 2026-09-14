@@ -6,6 +6,7 @@ export {
   IncompleteCredentialsError,
   NetworkError,
 } from "./errors.js";
+export { NO_SUCH_REFERENCE_TEXT } from "./types.js";
 export type {
   GetVersesParams,
   Language,

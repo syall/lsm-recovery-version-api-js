@@ -55,6 +55,28 @@ export interface Verse {
   urlpfx?: string;
 }
 
+/**
+ * A `Verse`-shaped entry the API returns for a syntactically well-formed
+ * but non-existent reference (an unrecognized book, or a real book with
+ * an out-of-range chapter/verse) — confirmed live, not documented
+ * anywhere. It's a normal, successful `200` response — `searchType` is
+ * still `"references"` and there's no error `message` — with one fake
+ * verse standing in for the real result:
+ *
+ * ```json
+ * { "ref": " 99:99", "urlpfx": "", "text": "No such reference" }
+ * ```
+ *
+ * (from `String=Zzz 99:99`, where `Zzz` isn't a recognized book). Nothing
+ * in this package flags this for you — `getVerses()` returns it as an
+ * ordinary `Verse` in `result.verses`, since from the API's own
+ * perspective the request succeeded. If you need to detect this, check
+ * for `verse.text === NO_SUCH_REFERENCE_TEXT` (the exact, apparently
+ * fixed, sentinel string LSM's API uses) or an empty `verse.urlpfx` on
+ * an otherwise-successful response. See DIFFERENCES.md.
+ */
+export const NO_SUCH_REFERENCE_TEXT = "No such reference";
+
 /** Normalized response shape returned by getVerses. */
 export interface VersesResponse {
   /** The raw input string as sent to the API. */

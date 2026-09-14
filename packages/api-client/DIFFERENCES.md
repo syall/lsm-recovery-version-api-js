@@ -24,7 +24,7 @@ used real registered `appId`/`token` credentials.
 | 5 | Full-text word search mode | Not mentioned anywhere in the docs — the docs describe `String` purely as a citation grammar. | When `String` doesn't resolve to a recognized reference, the API transparently falls back to a full-text search of the whole Bible and returns matching verses, tagged `"searchType": "words"` (vs. `"references"` for a normal citation lookup). See "Word search mode, in detail" below. | `String=grace` → 49 matched verses from Psalms through 1 Corinthians, each shaped exactly like a normal `{ref, text, urlpfx}` entry. |
 | 6 | `searchType` response field | Absent from the docs' response schema entirely (both the XML and JSON examples). | Present on **every** response tested, including error/unauthorized responses — always either `"references"` or `"words"`. | The "not authorized" response for `String=John 3:16` still includes `"searchType": "references"`, because the reference is recognized before the auth check fails. |
 | 7 | `Lang` values | Documented as `eng` (default) or `spa` only; no stated behavior for anything else. | Three more values also work, returning correctly translated `detected`/`verses[].text`: `por` (Portuguese), `zho` (Chinese), `tag` (Tagalog). Any *other* value — including plausible-looking ISO-style guesses for those same three languages — 500s with an empty body. This is the one case found where the API *does* return a real non-200 HTTP status. See "Undocumented `Lang` values, in detail" below. | `Lang=zho` on `String=John 3:16` → `200`, `"detected": "約 3:16."`, Chinese verse text. `Lang=zh` (a plausible ISO 639-1 guess for the same language) → `500`, empty body. `Lang=xyz` → `500`, empty response body. |
-| 8 | `urlpfx` in the response schema | The docs' own example JSON/XML for a successful response omits `urlpfx` from the schema shown (though the field is *named* and described elsewhere in the docs as "URL postfix..."). | Present on every verse entry in every live response tested — including entries for a reference that doesn't actually exist, where it's an empty string rather than a real path. | `String=Zzz 99:99` → `{"ref": " 99:99", "urlpfx": "", "text": "No such reference"}` — the key is present, just empty. |
+| 8 | `urlpfx` in the response schema, and unrecognized references | The docs' own example JSON/XML for a successful response omits `urlpfx` from the schema shown (though the field is *named* and described elsewhere in the docs as "URL postfix..."). Nothing in the docs addresses what happens for a well-formed but unrecognized book/chapter/verse. | `urlpfx` is present on every verse entry in every live response tested. For a reference that doesn't actually exist, the API returns a normal `200` with one fake `Verse`-shaped entry standing in for the real result — `searchType` is still `"references"`, no error `message` — rather than an error or an empty `verses` array. See "'No such reference' phantom verses, in detail" below. | `String=Zzz 99:99` (unrecognized book) → `{"ref": " 99:99", "urlpfx": "", "text": "No such reference"}`. |
 | 9 | Empty `String=` parameter | Not addressed. | Returns the API's own HTML documentation landing page (a `<!DOCTYPE html>` page linking to https://api.lsm.org/apis.php) — with `Content-Type: application/json` even though the body is HTML, not JSON. Not a `verses.json`-shaped response at all. | `String=&Out=json` → `200`, `content-type: application/json`, body starts `\n<!DOCTYPE html>\n  <head>...`. |
 
 ## Word search mode, in detail
@@ -87,6 +87,43 @@ specifically recognizes these five 3-letter values (`eng`, `spa`, `por`,
 `zho`, `tag`) — the same ones LSM's own reader site happens to use
 internally — and nothing else, rather than accepting a broader set of
 standard language codes.
+
+## "No such reference" phantom verses, in detail
+
+Confirmed live by requesting references that are syntactically valid but
+don't actually exist:
+
+```json
+// String=Zzz 99:99 (Zzz isn't a recognized book)
+{
+  "inputstring": "Zzz 99:99",
+  "detected": " 99:99",
+  "verses": [
+    { "ref": " 99:99", "urlpfx": "", "text": "No such reference" }
+  ],
+  "message": "",
+  "copyright": "© ...",
+  "searchType": "references"
+}
+```
+
+- **It's a normal `200`, not an error.** `message` is empty and
+  `searchType` is `"references"` — the API considers the request
+  successful, it just has nothing real to return.
+- **`text` is always the fixed sentinel string `"No such reference"`** in
+  every case tested (unrecognized book name, and a real book with an
+  out-of-range chapter/verse) — exported by this package as
+  `NO_SUCH_REFERENCE_TEXT` so callers checking for it don't have to
+  hardcode the literal string themselves.
+- **`ref`/`detected` drop the unrecognized book name entirely**, leaving
+  just the chapter:verse portion with a leading space (`" 99:99"`) — the
+  book name isn't echoed back even though it was present in the input.
+- **`urlpfx` is an empty string** rather than a real link path, since
+  there's no real verse to link to (contrast with row 8's normal case,
+  where `urlpfx` is always a non-empty path).
+- This package doesn't flag or filter these for you — `getVerses()`
+  returns the phantom entry as an ordinary `Verse` in `result.verses`,
+  since the request succeeded from the API's own point of view.
 
 ## Confirmed matching documented behavior
 

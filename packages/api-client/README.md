@@ -185,6 +185,32 @@ A few things confirmed about word-search mode:
   for input the docs claim should be rejected outright (disallowed
   characters). See `DIFFERENCES.md` for the exact example.
 
+### Edge cases in `string`
+
+One confirmed-live behavior worth knowing about before you build
+`string` dynamically (e.g. from user input) — which is not validated
+for you by this package, since it never inspects `string` before
+sending it:
+
+- **"No such reference" phantom verses**: a syntactically well-formed
+  but non-existent reference (an unrecognized book, or a real book with
+  an out-of-range chapter/verse) doesn't error either — it's a normal
+  `200` with one fake `Verse` standing in for the real result:
+  `{ "ref": " 99:99", "urlpfx": "", "text": "No such reference" }`.
+  `getVerses()` returns it as an ordinary entry in `result.verses`, since
+  the request succeeded from the API's own point of view. Detect it by
+  checking `verse.text === NO_SUCH_REFERENCE_TEXT` (exported by this
+  package) or an empty `verse.urlpfx`:
+
+  ```ts
+  import { NO_SUCH_REFERENCE_TEXT } from "@syall/lsm-recovery-version-api-js";
+
+  const result = await client.getVerses({ string: "Zzz 99:99" });
+  const real = result.verses.filter((v) => v.text !== NO_SUCH_REFERENCE_TEXT);
+  ```
+
+  See `DIFFERENCES.md` for the full write-up of this case.
+
 ### Language support
 
 LSM's docs only document `lang: "eng"` (the default) and `lang: "spa"`.

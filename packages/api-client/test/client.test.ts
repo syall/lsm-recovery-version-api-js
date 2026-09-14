@@ -8,6 +8,7 @@ import {
   NetworkError,
   UnauthorizedError,
 } from "../src/errors.js";
+import { NO_SUCH_REFERENCE_TEXT } from "../src/types.js";
 
 /**
  * Client-level behavior: URL construction, request headers/method,
@@ -324,6 +325,31 @@ test("getVerses returns the parsed JSON response body as-is", async () => {
   const result = await client.getVerses({ string: "John 1:14" });
 
   assert.deepEqual(result, body);
+});
+
+test("NO_SUCH_REFERENCE_TEXT matches the live sentinel string, and flags a phantom verse entry", async () => {
+  // Confirmed live: a syntactically valid but unrecognized reference
+  // (e.g. String=Zzz 99:99) comes back as an ordinary 200 with one fake
+  // Verse standing in for the real result — see DIFFERENCES.md. This
+  // package doesn't filter it out; NO_SUCH_REFERENCE_TEXT just gives
+  // callers the exact sentinel string to check for themselves.
+  assert.equal(NO_SUCH_REFERENCE_TEXT, "No such reference");
+
+  const body = {
+    inputstring: "Zzz 99:99",
+    detected: " 99:99",
+    verses: [{ ref: " 99:99", urlpfx: "", text: NO_SUCH_REFERENCE_TEXT }],
+    message: "",
+    copyright: "© LSM",
+    searchType: "references" as const,
+  };
+  const { fetchImpl } = makeCapturingFetch(() => okResponse(body));
+  const client = new LsmRecoveryVersionClient({ appId: "id", token: "tok", fetch: fetchImpl });
+
+  const result = await client.getVerses({ string: "Zzz 99:99" });
+
+  assert.deepEqual(result, body);
+  assert.ok(result.verses.every((v) => v.text === NO_SUCH_REFERENCE_TEXT));
 });
 
 test("getVerses returns searchType: \"words\" for a full-text word-search response", async () => {
