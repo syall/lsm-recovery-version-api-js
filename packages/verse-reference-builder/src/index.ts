@@ -17,3 +17,4 @@ export {
   type ValidationResult,
 } from "./VerseReferenceBuilder.js";
 export { type BookTable } from "./bookData.js";
+export { findDisallowedCharacters } from "./verseValidation.js";

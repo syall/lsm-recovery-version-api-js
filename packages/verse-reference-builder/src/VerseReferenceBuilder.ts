@@ -1,7 +1,12 @@
 import { BOOKS } from "./bookData.js";
 import { resolveBookName } from "./resolveBookName.js";
 import { countEntryVerses, serialize, type BuildOptions, type Entry } from "./serialize.js";
-import { assertCrossChapterRangeOrder, assertVerseExists, assertVerseSpecExists } from "./verseValidation.js";
+import {
+  assertCrossChapterRangeOrder,
+  assertVerseExists,
+  assertVerseSpecExists,
+  findDisallowedCharacters,
+} from "./verseValidation.js";
 import type {
   BookName,
   ChapterOf,
@@ -258,6 +263,30 @@ export class VerseReferenceBuilder {
    * exact total — including whole-chapter and cross-chapter-range
    * entries — computed from the user-supplied verses-per-chapter table
    * (see bookData.ts), not an estimate.
+   *
+   * Also checks the serialized output against LSM's documented `String`
+   * character grammar (see `findDisallowedCharacters` in
+   * verseValidation.ts) and warns if any character falls outside it.
+   * LSM's docs claim this "will result in an error and no output," but
+   * live testing (see `@syall/lsm-recovery-version-api-js`'s
+   * `DIFFERENCES.md`, row 4) found it actually silently degrades into a
+   * zero-result word search instead — either way, not what a caller
+   * intended, so it's surfaced here as a warning rather than a thrown
+   * error. In practice this can't currently be triggered through this
+   * class's public API — every book name/abbreviation and verse citation
+   * this package can serialize is already plain ASCII within the allowed
+   * set — so this check exists as defense in depth against a future
+   * addition introducing a disallowed character.
+   *
+   * Also warns if no entries were added at all, since `build()` then
+   * returns an empty string — confirmed live (see
+   * `@syall/lsm-recovery-version-api-js`'s `DIFFERENCES.md`, row 9) to be
+   * a special case for LSM's API: rather than an error or an empty
+   * result, an empty `String=` returns the API's own HTML documentation
+   * landing page, mislabeled as a JSON response. Almost certainly not
+   * what a caller intended (typically a forgotten `.verse()`/
+   * `.wholeChapter()`/etc. call), so it's flagged here even though this
+   * package itself has no dependency on, or awareness of, that behavior.
    */
   validate(): ValidationResult {
     const warnings: string[] = [];
@@ -268,6 +297,29 @@ export class VerseReferenceBuilder {
         `${verseCount} verses requested, over LSM's 50-verse cap per request. ` +
           `The API will return a truncated result plus a warning in its ` +
           `"message" field rather than rejecting the request.`,
+      );
+    }
+
+    const built = this.build();
+
+    if (built.length === 0) {
+      warnings.push(
+        `No verse references were added — build() returns an empty string. ` +
+          `LSM's API treats an empty \`String=\` specially: instead of an error ` +
+          `or an empty result, it returns its own HTML documentation landing ` +
+          `page (mislabeled as a JSON response) rather than a normal ` +
+          `"verses" response.`,
+      );
+    }
+
+    const disallowed = findDisallowedCharacters(built);
+    if (disallowed.length > 0) {
+      warnings.push(
+        `Output contains character(s) outside LSM's documented \`String\` ` +
+          `grammar: ${disallowed.map((c) => JSON.stringify(c)).join(", ")}. Per ` +
+          `LSM's docs this "will result in an error and no output" — live ` +
+          `testing instead found it silently falls back to a zero-result word ` +
+          `search, neither of which is likely what was intended.`,
       );
     }
 

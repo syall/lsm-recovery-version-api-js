@@ -6,6 +6,47 @@ export function citationNumber(citation: VerseCitation): number {
   return Number(String(citation).replace(/[a-c]$/, ""));
 }
 
+/**
+ * The character set LSM's documented `String` grammar actually uses:
+ * letters (book names/abbreviations, e.g. "Cor."), digits, spaces, and
+ * the punctuation the grammar's own examples rely on — `.` (abbreviation
+ * periods), `,`/`;` (separating multiple citations/verses), and `-`
+ * (verse ranges), e.g. `"Prov. 29:18; Acts 26:19; Eph. 4:4-6; Rev. 21:2, 9-10"`.
+ * LSM's docs claim (per `DIFFERENCES.md` row 4) that "using any other
+ * kind of character in an input string will result in an error and no
+ * output" — live testing found that's not actually true (a disallowed
+ * character silently becomes a zero-result word search instead, per
+ * `SearchType` in `@syall/lsm-recovery-version-api-js`), but the
+ * documented rule is still worth flagging proactively here, since a
+ * caller almost certainly didn't intend to fall into word-search mode.
+ *
+ * Uses the `u` flag so a non-BMP character (e.g. an emoji) is matched
+ * whole, as one disallowed codepoint, rather than as two separate
+ * (individually meaningless) UTF-16 surrogate halves.
+ */
+const DISALLOWED_CHARACTER_PATTERN = /[^A-Za-z0-9.,:;\- ]/gu;
+
+/**
+ * Returns the distinct characters in `built` (typically a builder's
+ * `.build()` output, though any string can be checked) that fall outside
+ * LSM's documented `String` grammar (see `DISALLOWED_CHARACTER_PATTERN`
+ * above) — empty if none. This is what `VerseReferenceBuilder.validate()`
+ * uses internally, and is also exported directly (see the package's
+ * `index.ts`) for anyone validating a hand-built or otherwise
+ * externally-sourced `String` value that didn't go through this
+ * builder. Every book name/abbreviation in `bookData.ts` and every verse
+ * citation this package can itself serialize is already plain ASCII
+ * within the allowed set, so `validate()` can't currently surface this
+ * warning through `VerseReferenceBuilder`'s own public API — it's kept
+ * as defense in depth there, the same role `InvalidInputError` plays in
+ * `@syall/lsm-recovery-version-api-js`, in case a future book/citation
+ * form introduces a character outside this set.
+ */
+export function findDisallowedCharacters(built: string): string[] {
+  const matches = built.match(DISALLOWED_CHARACTER_PATTERN);
+  return matches ? Array.from(new Set(matches)) : [];
+}
+
 function isVerseRangeLike(v: unknown): v is { from: VerseCitation; to: VerseCitation } {
   return typeof v === "object" && v !== null && "from" in v && "to" in v;
 }

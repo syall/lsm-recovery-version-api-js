@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { VerseReferenceBuilder, resolveBookName, BOOKS } from "../src/index.js";
+import { VerseReferenceBuilder, findDisallowedCharacters, resolveBookName, BOOKS } from "../src/index.js";
 
 // Regression guard for bookData.ts's hand-maintained data: a future manual
 // edit (adding/removing a chapter, trimming a versesPerChapter array) could
@@ -199,6 +199,36 @@ test("validate() is clean for a small request", () => {
   const result = b.validate();
   assert.equal(result.verseCount, 1);
   assert.deepEqual(result.warnings, []);
+});
+
+test("validate() warns when no verse references have been added", () => {
+  // build() returns "" in this case — confirmed live (DIFFERENCES.md in
+  // @syall/lsm-recovery-version-api-js) to be a footgun: LSM's API
+  // returns its own HTML docs page for an empty String=, not an error.
+  const b = new VerseReferenceBuilder();
+  const result = b.validate();
+  assert.equal(result.verseCount, 0);
+  assert.equal(b.build(), "");
+  assert.equal(result.warnings.length, 1);
+  assert.match(result.warnings[0]!, /empty string/);
+});
+
+test("findDisallowedCharacters flags characters outside LSM's documented String grammar", () => {
+  // Every book name/abbreviation and verse citation this package can
+  // serialize is already plain ASCII within the allowed set, so this
+  // can't currently be triggered through VerseReferenceBuilder's public
+  // API — it's tested directly against the extracted helper instead.
+  assert.deepEqual(findDisallowedCharacters("John 3:16"), []);
+  assert.deepEqual(
+    findDisallowedCharacters("Prov. 29:18; Acts 26:19; Eph. 4:4-6; Rev. 21:2, 9-10"),
+    [],
+  );
+  assert.deepEqual(findDisallowedCharacters("John @#$% 3:16"), ["@", "#", "$", "%"]);
+  assert.deepEqual(findDisallowedCharacters("John 3:16 😀"), ["😀"]);
+});
+
+test("findDisallowedCharacters de-duplicates repeated disallowed characters", () => {
+  assert.deepEqual(findDisallowedCharacters("a@b@c@"), ["@"]);
 });
 
 test("verse() throws a RangeError for a verse that doesn't exist in the chapter", () => {
