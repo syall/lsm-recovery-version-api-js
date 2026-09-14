@@ -211,7 +211,9 @@ const result = await client.getVerses({
 });
 ```
 
-See that package's own README for the full builder API.
+See that package's own README for the full builder API. Note this
+package does not support LSM's documented OSIS input mode (`In=osis`)
+— only the default reference-string grammar.
 
 ## Notes
 
