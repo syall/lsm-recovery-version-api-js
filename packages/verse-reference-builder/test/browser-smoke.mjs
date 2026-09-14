@@ -42,6 +42,6 @@ export async function runBrowserSmoke({ page, globalName, bundleSource }) {
 
   assert.equal(result.basic, "John 1:14; Ephesians 4:4-6; Jude 9");
   assert.equal(result.range, "John 1:30-2:5");
-  assert.equal(result.wholeChapterVerseCount, 177);
+  assert.equal(result.wholeChapterVerseCount, 176);
   assert.equal(result.rejectedNonexistentVerse, true);
 }

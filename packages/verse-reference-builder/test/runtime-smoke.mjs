@@ -34,7 +34,7 @@ assertEqual(range, "John 1:30-2:5", "unexpected cross-chapter range string");
 // validate() now gives an exact count for whole-chapter/cross-chapter-range
 // entries too, using the supplied verses-per-chapter table.
 const { verseCount } = new VerseReferenceBuilder().wholeChapter("Psalms", 119).validate();
-assertEqual(verseCount, 177, "unexpected exact whole-chapter verse count");
+assertEqual(verseCount, 176, "unexpected exact whole-chapter verse count");
 
 // A verse that doesn't exist in the chapter is now rejected at call time.
 let threw = false;

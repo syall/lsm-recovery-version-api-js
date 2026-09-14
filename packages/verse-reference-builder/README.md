@@ -143,7 +143,7 @@ verses-per-chapter:
 const { verseCount, warnings } = new VerseReferenceBuilder()
   .wholeChapter("Psalms", 119)
   .validate();
-// verseCount: 177, warnings: ["177 verses requested, over LSM's 50-verse cap..."]
+// verseCount: 176, warnings: ["176 verses requested, over LSM's 50-verse cap..."]
 ```
 
 `.build(options)` accepts `{ useAbbreviations?: boolean }`.

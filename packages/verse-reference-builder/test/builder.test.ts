@@ -1,6 +1,25 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { VerseReferenceBuilder, resolveBookName } from "../src/index.js";
+import { VerseReferenceBuilder, resolveBookName, BOOKS } from "../src/index.js";
+
+// Regression guard for bookData.ts's hand-maintained data: a future manual
+// edit (adding/removing a chapter, trimming a versesPerChapter array) could
+// silently desync `chapters` from `versesPerChapter.length` without this —
+// exactly the kind of mismatch the Psalms/Isaiah versesPerChapter
+// correction (see bookData.ts's doc comment) was hunting for by hand.
+test("BOOKS has all 66 canonical books, each with a versesPerChapter length matching its chapters count", () => {
+  const names = Object.keys(BOOKS);
+  assert.equal(names.length, 66);
+
+  const mismatches = names
+    .map((name) => {
+      const book = BOOKS[name as keyof typeof BOOKS];
+      return { name, chapters: book.chapters, versesPerChapterLength: book.versesPerChapter.length };
+    })
+    .filter((entry) => entry.chapters !== entry.versesPerChapterLength);
+
+  assert.deepEqual(mismatches, []);
+});
 
 test("single verse", () => {
   const s = new VerseReferenceBuilder().verse("John", 1, 14).build();
@@ -153,11 +172,12 @@ test("validate() sums explicit verse counts and flags the 50-verse cap", () => {
 });
 
 test("validate() computes an exact whole-chapter verse count from the supplied data", () => {
-  // Psalms 119 has 177 verses per the supplied verses-per-chapter table —
-  // no longer an unknowable lower bound.
+  // Psalms 119 has 176 verses live (confirmed against the Recovery
+  // Version reader site's own verse anchors — see bookData.ts's doc
+  // comment) — no longer an unknowable lower bound.
   const b = new VerseReferenceBuilder().wholeChapter("Psalms", 119);
   const result = b.validate();
-  assert.equal(result.verseCount, 177);
+  assert.equal(result.verseCount, 176);
   assert.equal(result.warnings.length, 1);
   assert.match(result.warnings[0]!, /50-verse/);
 });

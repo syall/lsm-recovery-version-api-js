@@ -7,16 +7,41 @@
  * knowledge, since a mismatch between this table and what the live API
  * actually accepts would be worse than not encoding it at all.
  *
- * `versesPerChapter`, by contrast, is NOT from LSM's documentation — LSM
- * publishes only chapter counts, not verses per chapter. It's supplied
- * from a separate source (source book names there varied, e.g. "First
- * Samuel" vs. "1 Samuel", "The Gospel According to Matthew" vs.
- * "Matthew", and have been mapped onto this table's keys with no changes
- * to the counts themselves) and every array's length was checked against
- * this same book's `chapters` count — all 66 matched. Each array is
- * 0-indexed by (chapter - 1); e.g. `BOOKS.John.versesPerChapter[0]` is
- * John chapter 1's verse count. It powers `versesInChapter()` below,
- * which is what the rest of this package actually calls.
+ * `versesPerChapter` is NOT from LSM's documentation either — LSM
+ * publishes only chapter counts, not verses per chapter. It was
+ * originally supplied from a separate, unverified source and only
+ * cross-checked for array-length-per-book. It has since been corrected
+ * against the live Recovery Version reader site
+ * (https://text.recoveryversion.bible), which is the real ground truth
+ * for what `versesInChapter()` needs to match: every one of this
+ * package's 1,189 chapters was checked by fetching that chapter's live
+ * page and reading its highest `id="{code}{chapter}-{verse}"` anchor —
+ * the reader site numbers every verse in its own markup (e.g.
+ * `id="Joh3-16"` on John 3:16), so a chapter's own last such id IS its
+ * live verse count, no inference needed. 120 of 1,189 chapters (across 2
+ * books) needed correcting:
+ *
+ * - **Psalms**: 119 of 150 chapters were off by exactly +1. Every
+ *   affected chapter carries a title/superscription (e.g. "A Psalm of
+ *   David, when he fled from Absalom his son" before Psalm 3:1) that the
+ *   live site marks with its own `id="Psa{N}-0"` anchor — `class=
+ *   "text-outline"`, not `class="verse"` — i.e. verse *0*, not verse 1.
+ *   This table's old source apparently counted that title as verse 1 (a
+ *   legitimate but different convention, closer to Masoretic/Hebrew
+ *   versification), shifting every subsequent verse in the chapter up by
+ *   one relative to the Recovery Version's own numbering. Psalm 119
+ *   (177 → 176) is the one exception in this book: it has no title, so
+ *   this isn't the title-counting pattern — the old value was simply
+ *   off by LSM's live numbering.
+ * - **Isaiah 23**: 19 → 18. Not part of the Psalms title pattern; this
+ *   reads as an ordinary versification difference between whatever
+ *   translation tradition the old source used and the Recovery Version.
+ *
+ * Every array's length was (and still is) checked against this same
+ * book's `chapters` count — all 66 match. Each array is 0-indexed by
+ * (chapter - 1); e.g. `BOOKS.John.versesPerChapter[0]` is John chapter
+ * 1's verse count. It powers `versesInChapter()` below, which is what
+ * the rest of this package actually calls.
  *
  * Each `versesPerChapter` array is explicitly widened to `readonly
  * number[]` (rather than left to the `as const` below) so it stays an
@@ -121,7 +146,7 @@ export const BOOKS = {
   Psalms: {
     chapters: 150,
     abbr: "Psa.",
-    versesPerChapter: [7, 12, 9, 9, 13, 11, 18, 10, 21, 18, 8, 9, 7, 8, 6, 12, 16, 51, 15, 10, 14, 32, 7, 11, 23, 13, 15, 10, 12, 13, 25, 12, 22, 23, 29, 13, 41, 23, 14, 18, 14, 12, 5, 27, 18, 12, 10, 15, 21, 24, 20, 10, 7, 8, 24, 14, 12, 12, 18, 13, 9, 13, 12, 11, 14, 21, 8, 36, 37, 6, 24, 21, 29, 24, 11, 13, 21, 73, 14, 20, 17, 9, 19, 13, 14, 18, 8, 19, 53, 18, 16, 16, 5, 23, 11, 13, 12, 10, 9, 6, 9, 29, 23, 35, 45, 48, 44, 14, 32, 8, 10, 10, 9, 8, 18, 19, 2, 29, 177, 8, 9, 10, 5, 9, 6, 7, 6, 7, 9, 9, 4, 19, 4, 4, 21, 26, 9, 9, 25, 14, 11, 8, 13, 16, 22, 10, 20, 14, 9, 6] as readonly number[],
+    versesPerChapter: [6, 12, 8, 8, 12, 10, 17, 9, 20, 18, 7, 8, 6, 7, 5, 11, 15, 50, 14, 9, 13, 31, 6, 10, 22, 12, 14, 9, 11, 12, 24, 11, 22, 22, 28, 12, 40, 22, 13, 17, 13, 11, 5, 26, 17, 11, 9, 14, 20, 23, 19, 9, 6, 7, 23, 13, 11, 11, 17, 12, 8, 12, 11, 10, 13, 20, 7, 35, 36, 5, 24, 20, 28, 23, 10, 12, 20, 72, 13, 19, 16, 8, 18, 12, 13, 17, 7, 18, 52, 17, 16, 15, 5, 23, 11, 13, 12, 9, 9, 5, 8, 28, 22, 35, 45, 48, 43, 13, 31, 7, 10, 10, 9, 8, 18, 19, 2, 29, 176, 7, 8, 9, 4, 8, 5, 6, 5, 6, 8, 8, 3, 18, 3, 3, 21, 26, 9, 8, 24, 13, 10, 7, 12, 15, 21, 10, 20, 14, 9, 6] as readonly number[],
   },
   Proverbs: {
     chapters: 31,
@@ -141,7 +166,7 @@ export const BOOKS = {
   Isaiah: {
     chapters: 66,
     abbr: "Isa.",
-    versesPerChapter: [31, 22, 26, 6, 30, 13, 25, 22, 21, 34, 16, 6, 22, 32, 9, 14, 14, 7, 25, 6, 17, 25, 19, 23, 12, 21, 13, 29, 24, 33, 9, 20, 24, 17, 10, 22, 38, 22, 8, 31, 29, 25, 28, 28, 25, 13, 15, 22, 26, 11, 23, 15, 12, 17, 13, 12, 21, 14, 21, 22, 11, 12, 19, 12, 25, 24] as readonly number[],
+    versesPerChapter: [31, 22, 26, 6, 30, 13, 25, 22, 21, 34, 16, 6, 22, 32, 9, 14, 14, 7, 25, 6, 17, 25, 18, 23, 12, 21, 13, 29, 24, 33, 9, 20, 24, 17, 10, 22, 38, 22, 8, 31, 29, 25, 28, 28, 25, 13, 15, 22, 26, 11, 23, 15, 12, 17, 13, 12, 21, 14, 21, 22, 11, 12, 19, 12, 25, 24] as readonly number[],
   },
   Jeremiah: {
     chapters: 52,
