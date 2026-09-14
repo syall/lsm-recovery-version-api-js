@@ -1,5 +1,21 @@
 # @syall/verse-reference-builder
 
+## 0.2.0
+
+### Minor Changes
+
+- 289659a: `validate()` now flags two more problems proactively, both as warnings rather than thrown errors:
+  
+  - **Disallowed characters**: any character in the built output that falls outside LSM's documented `String` grammar (letters, digits, spaces, `.`, `,`, `;`, `-`). LSM's docs claim such a character "will result in an error and no output," but the sibling `@syall/lsm-recovery-version-api-js` package found live that it actually just silently falls back to a zero-result word search — either way, not what was intended. This can't currently be triggered through any of `VerseReferenceBuilder`'s public methods — every book name/abbreviation and verse citation this package can serialize is already plain ASCII within the allowed set — so in practice `validate()`'s `warnings` array won't gain this entry for existing callers. It's defense in depth against a future book/citation form introducing a disallowed character, mirroring the role `InvalidInputError` plays in the API client package. Also adds a new public export, `findDisallowedCharacters(built: string): string[]`, the underlying check — for anyone validating a hand-built or otherwise externally-sourced `String` value that didn't go through this builder at all.
+  - **Empty output**: calling `validate()` (or `build()`) with no verse references added at all — typically a forgotten `.verse()`/`.wholeChapter()`/etc. call. `build()` returns `""` in that case, and the sibling `@syall/lsm-recovery-version-api-js` package found live that LSM's API treats an empty `String=` specially: it returns its own HTML documentation landing page (mislabeled as JSON) rather than an error or an empty result — a confusing failure mode worth flagging before a request is ever sent.
+- f0e5d29: Corrected `versesPerChapter` in `bookData.ts` for 120 chapters across Psalms (119 of 150 chapters) and Isaiah (chapter 23), verified directly against the live Recovery Version reader site (https://text.recoveryversion.bible) — every one of this package's 1,189 chapters was checked against that chapter's live page and its highest `id="{code}{chapter}-{verse}"` anchor, which is the site's own verse numbering.
+  
+  Nearly all of the Psalms corrections are the same root cause: 119 Psalms carry a title/superscription (e.g. "A Psalm of David, when he fled from Absalom his son") that the live site numbers as verse **0** (`class="text-outline"`, not `class="verse"`), not verse 1. This package's previous data apparently counted that title as verse 1 instead, shifting every later verse in the chapter up by one relative to the Recovery Version's actual numbering. Psalm 119 (177 → 176, no title) and Isaiah 23 (19 → 18) are ordinary versification corrections unrelated to the title pattern.
+  
+  This changes the return value of `versesInChapter()` for the affected book/chapter pairs, and therefore `validate()`'s computed verse counts for any whole-chapter or range request touching one of them (e.g. `wholeChapter("Psalms", 119)` now reports 176 verses, not 177) — if your code hardcoded expectations against the old counts for these specific chapters, it will see different (now-correct) numbers.
+  
+  No changes to `chapters` (chapter counts) or `abbr` for any book — both were already verified against LSM's own docs and matched. See `bookData.ts`'s updated doc comment for the full methodology.
+
 ## 0.1.5
 
 ### Patch Changes

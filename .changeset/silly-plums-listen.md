@@ -1,8 +1,0 @@
----
-"@syall/verse-reference-builder": minor
----
-
-`validate()` now flags two more problems proactively, both as warnings rather than thrown errors:
-
-- **Disallowed characters**: any character in the built output that falls outside LSM's documented `String` grammar (letters, digits, spaces, `.`, `,`, `;`, `-`). LSM's docs claim such a character "will result in an error and no output," but the sibling `@syall/lsm-recovery-version-api-js` package found live that it actually just silently falls back to a zero-result word search — either way, not what was intended. This can't currently be triggered through any of `VerseReferenceBuilder`'s public methods — every book name/abbreviation and verse citation this package can serialize is already plain ASCII within the allowed set — so in practice `validate()`'s `warnings` array won't gain this entry for existing callers. It's defense in depth against a future book/citation form introducing a disallowed character, mirroring the role `InvalidInputError` plays in the API client package. Also adds a new public export, `findDisallowedCharacters(built: string): string[]`, the underlying check — for anyone validating a hand-built or otherwise externally-sourced `String` value that didn't go through this builder at all.
-- **Empty output**: calling `validate()` (or `build()`) with no verse references added at all — typically a forgotten `.verse()`/`.wholeChapter()`/etc. call. `build()` returns `""` in that case, and the sibling `@syall/lsm-recovery-version-api-js` package found live that LSM's API treats an empty `String=` specially: it returns its own HTML documentation landing page (mislabeled as JSON) rather than an error or an empty result — a confusing failure mode worth flagging before a request is ever sent.
