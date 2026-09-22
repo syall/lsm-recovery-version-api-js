@@ -113,18 +113,24 @@ jobs:
     environment: npm-publish
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          persist-credentials: true
 
+      # "lts/*" resolves to whatever is Active LTS at run time (24 now, 26
+      # from 2026-10-28). The release path wants the least novel Node
+      # available rather than the newest; note the npm CLI below is
+      # upgraded to latest regardless, so part of this toolchain already
+      # resolves at run time.
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: "22.x"
+          node-version: "lts/*"
           cache: npm
 
       # OIDC trusted publishing needs a recent npm CLI (>= 11.5.1),
-      # newer than what some Node 20/22 setups ship by default.
+      # newer than what some Node setups ship by default.
       - name: Update npm for OIDC trusted publishing support
         run: npm install -g npm@latest
 

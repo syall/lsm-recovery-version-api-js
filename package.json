@@ -13,7 +13,7 @@
     "packages/api-client"
   ],
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "scripts": {
     "clean": "npm run clean --workspaces --if-present",

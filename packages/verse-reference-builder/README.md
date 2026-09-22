@@ -37,9 +37,9 @@ Ships both ESM (`import`) and CommonJS (`require`) builds, plus type
 declarations for both — works with Node, Bun, Deno, and any bundler
 (webpack, esbuild, Vite, Rollup, etc.) targeting either module system.
 Node and Bun/Deno compatibility are both verified in CI, not just
-claimed. Requires Node 20+ (no runtime APIs beyond that are actually
+claimed. Requires Node 22+ (no runtime APIs beyond that are actually
 used — this floor matches the sibling `@syall/lsm-recovery-version-api-js`
-package for consistency).
+package for consistency, and Node 20 reached end-of-life on 2026-04-30).
 
 ```ts
 // ESM / TypeScript

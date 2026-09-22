@@ -29,9 +29,10 @@ declarations for both — works with Node, Bun, Deno, and any bundler
 Node and Bun/Deno compatibility are both verified in CI (see
 [Runtime compatibility](#runtime-compatibility) below), not just claimed.
 
-Requires Node 20+ (for global `fetch`), or pass a `fetch` polyfill via
-`LsmClientConfig.fetch` for older runtimes or non-Node environments
-without a global `fetch` (e.g. via `undici` or `node-fetch`).
+Requires Node 22+ — Node 20 reached end-of-life on 2026-04-30 and is no
+longer covered by CI. Every supported line has a global `fetch`; for
+older runtimes or non-Node environments without one, pass a `fetch`
+polyfill via `LsmClientConfig.fetch` (e.g. via `undici` or `node-fetch`).
 
 ```ts
 // ESM / TypeScript
@@ -384,7 +385,7 @@ jobs, each running against **both packages** in this monorepo:
 
 - **`test`** — runs `test` (which typechecks first via the `pretest`
   script) and `build` for both packages, across a matrix of Node
-  20/22/24 on Ubuntu, Windows, and macOS (9 combinations).
+  22/24/26 on Ubuntu, Windows, and macOS (9 combinations).
 - **`browser`** — runs `test:browser` for both packages, matrixed by
   both OS and browser engine (`chromium`/`firefox`/`webkit` × 3 OSes = 9
   combinations), with no Node-version axis at all (one Node version is

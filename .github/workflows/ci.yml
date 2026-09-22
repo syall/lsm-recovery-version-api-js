@@ -13,17 +13,19 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        # Node 18 is EOL (April 2025); 20/22/24 are the currently
-        # maintained lines (20 and 22 are LTS, 24 is Active LTS as of
-        # this matrix's last update — check https://nodejs.org/en/about/previous-releases
-        # when revisiting).
-        node-version: ["20.x", "22.x", "24.x"]
+        # Node 20 is EOL (April 2026). As of this matrix's last update:
+        # 22 is Maintenance LTS (until April 2027), 24 is Active LTS, and
+        # 26 is the Current line — it becomes Active LTS on 2026-10-28,
+        # at which point 24 moves to Maintenance. 26 is in the matrix now
+        # so breakage surfaces before it's the LTS most consumers install.
+        # Check https://nodejs.org/en/about/previous-releases when revisiting.
+        node-version: ["22.x", "24.x", "26.x"]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: ${{ matrix.node-version }}
           cache: npm
@@ -55,12 +57,17 @@ jobs:
         engine: [chromium, firefox, webkit]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
+      # Node isn't what's under test in this job — it only installs deps
+      # and runs the driving script (the `test` matrix above is what covers
+      # Node version compatibility). "lts/*" resolves to whatever is Active
+      # LTS at run time — 24 now, 26 from 2026-10-28 — so this pin doesn't
+      # need a manual bump every October.
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: "20.x"
+          node-version: "lts/*"
           cache: npm
 
       - name: Install dependencies
@@ -102,12 +109,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
+      # "lts/*" = whatever is Active LTS at run time; see the note on the
+      # `browser` job above.
       - name: Set up Node.js (build step only — Bun itself runs the smoke test)
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: "20.x"
+          node-version: "lts/*"
           cache: npm
 
       - name: Install dependencies
@@ -127,12 +136,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
+      # "lts/*" = whatever is Active LTS at run time; see the note on the
+      # `browser` job above.
       - name: Set up Node.js (build step only — Deno itself runs the smoke test)
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: "20.x"
+          node-version: "lts/*"
           cache: npm
 
       - name: Install dependencies

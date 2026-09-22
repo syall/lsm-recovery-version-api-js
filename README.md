@@ -57,7 +57,7 @@ and run its own `npm run <script>`, or use `npm run <script>
 ### CI
 
 `.github/workflows/ci.yml` runs both packages' builds and test suites
-across a Node 20/22/24 × 3-OS matrix, a separate browser job
+across a Node 22/24/26 × 3-OS matrix, a separate browser job
 (chromium/firefox/webkit × 3-OS), and separate Bun/Deno runtime jobs.
 See each package's own README for the full breakdown.
 
