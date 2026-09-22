@@ -12,7 +12,7 @@ labels: bug
 - [ ] `@syall/lsm-recovery-version-api-js` (`packages/api-client`)
 - [ ] `@syall/verse-reference-builder` (`packages/verse-reference-builder`)
 
-**Version:** <!-- e.g. 0.2.0 -->
+**Version:** <!-- e.g. 0.3.0 -->
 **Runtime:** <!-- Node version, or Bun/Deno/browser + version -->
 
 ## Describe the bug
