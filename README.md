@@ -24,6 +24,18 @@ package under `packages/` publishes independently to npm, with its own
 [Changesets](https://github.com/changesets/changesets) — see
 `.changeset/README.md`).
 
+## Data source
+
+This repository holds no Bible text. The API client fetches verses at run time from LSM's
+[Text Only Holy Bible Recovery Version API](https://api.lsm.org/recver/txo-docs.htm) (`https://api.lsm.org/recver/txo.php`),
+which serves the current edition of the Recovery Version text (italic words in `[brackets]`). Without an
+`appId`/`token` registered at api.lsm.org it sends the public site key that text.recoveryversion.bible's own pages
+use (see `packages/api-client/DIFFERENCES.md`). The text is © Living Stream Ministry; show the response's
+`copyright` string with any verses you display. The verse-reference builder's book table
+(`packages/verse-reference-builder/src/bookData.ts`) takes book names, abbreviations and chapter counts from the
+table in the API documentation, and verses per chapter from text.recoveryversion.bible's chapter pages; the file's
+header comment has the details.
+
 ## Development
 
 ```bash
